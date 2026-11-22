@@ -55,7 +55,7 @@
 
 1. Download **`edownloader_<version>_x64-setup.exe`** from the [latest release](https://github.com/InstaZDLL/edownloader/releases/latest).
 2. Run it. It installs for your user only: no administrator rights, nothing system-wide.
-3. On first launch, click **Install** in the yellow banner. edownloader fetches the tools it drives — yt-dlp, aria2, ffmpeg and Deno — from their official releases and checks each one against its published checksum.
+3. On first launch, click **Install** in the yellow banner. edownloader fetches the tools it drives — yt-dlp, aria2, ffmpeg and Deno — from their official releases, verifying the checksums yt-dlp, FFmpeg and Deno publish (aria2 publishes none; its version is pinned).
 
 That's it. Paste a link and press <kbd>Enter</kbd>.
 
@@ -68,7 +68,7 @@ From then on edownloader keeps itself up to date: new versions download in the b
 <table>
   <tr>
     <td>🎯&nbsp;<b>One field for everything</b></td>
-    <td>No "video mode" or "file mode" to choose. The link is recognised and sent to the right engine: yt-dlp for media sites, aria2 for files and magnets.</td>
+    <td>No "video mode" or "file mode" to choose. Pages go to yt-dlp and its extractors, files and magnets to aria2, and a page yt-dlp cannot read is fetched as a file.</td>
   </tr>
   <tr>
     <td>⚡&nbsp;<b>Fast where it counts</b></td>
@@ -76,7 +76,7 @@ From then on edownloader keeps itself up to date: new versions download in the b
   </tr>
   <tr>
     <td>🔐&nbsp;<b>YouTube that just works</b></td>
-    <td>"Sign in to confirm you're not a bot"? Import your cookies once — paste, file, or straight from your browser — and edownloader tells you whether they hold a real sign-in.</td>
+    <td>"Sign in to confirm you're not a bot"? Import your cookies once — paste, file, or straight from your browser — and edownloader tells you whether they look signed in.</td>
   </tr>
   <tr>
     <td>🧰&nbsp;<b>Zero setup</b></td>
@@ -92,9 +92,9 @@ From then on edownloader keeps itself up to date: new versions download in the b
 
 ### ⬇️ Downloads
 
-- **Media from 1,800+ sites** through yt-dlp: titles, best format, video and audio merged, optional metadata and cover art embedded.
+- **Media from the 1,800+ sites yt-dlp has extractors for**: titles, best format, video and audio merged, optional metadata and cover art embedded.
 - **Format presets**: `best`, `1080p`, `720p`, `audio` (keeps the original codec, no lossy re-encode), and whole playlists with one toggle.
-- **MP4 that plays everywhere**, up to 4K (AV1), or `native` to keep the best codecs as WebM. Resolutions above 1080p still come out with sound.
+- **MP4-first output for broad compatibility**, up to 4K (AV1), or `native` to keep the best codecs as WebM. Resolutions above 1080p still come out with sound.
 - **Direct links and magnets** through aria2: multi-connection, resumable, BitTorrent included.
 - **A real queue**: a cap on simultaneous downloads, the rest start as slots free up. Pause, resume, retry, cancel, open the folder.
 - **Exact progress**: bytes, speed, ETA and connections read from the engines themselves, not guessed from a log.
@@ -163,7 +163,7 @@ They are large (ffmpeg alone is 200 MB), they come from other projects, and yt-d
 <details>
 <summary><b>Is it safe?</b></summary>
 
-The source is right here. The installer is Authenticode-signed (self-signed, hence the SmartScreen prompt) and published with its SHA-256. Updates are only installed if they carry a valid signature from the project's release key. Tools are downloaded over HTTPS from their official GitHub releases and checked against the checksums those projects publish. edownloader has no telemetry and talks to no server of its own.
+The source is right here. The installer is Authenticode-signed (self-signed, hence the SmartScreen prompt) and published with its SHA-256. Updates are only installed if they carry a valid signature from the project's release key. Tools are downloaded over HTTPS from their official GitHub releases and checked against the checksums yt-dlp, FFmpeg and Deno publish; aria2 publishes none, so it is pinned to its 1.37.0 release. edownloader has no telemetry: besides the tools, it only reads the update manifest on GitHub and on the project's download mirror.
 
 </details>
 

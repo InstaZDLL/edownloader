@@ -167,6 +167,9 @@ pub struct StartRequest {
     pub media: MediaOptions,
     pub cookie_file: Option<PathBuf>,
     pub connections: usize,
+    /// Sent to yt-dlp on a guess (a page on a host the app has no label
+    /// for): when yt-dlp has no extractor for it, aria2 fetches it as a file.
+    pub fallback_direct: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -690,6 +693,22 @@ impl Engine {
                             path,
                             size,
                         });
+                    } else if request.fallback_direct && is_unsupported_url(&stderr_lines, &errors)
+                    {
+                        // No extractor knows this page: it may still be a
+                        // file behind a URL without an extension.
+                        self.emit(Event::Log {
+                            id: request.id,
+                            line: "yt-dlp does not support this site; downloading it as a file"
+                                .into(),
+                        });
+                        let mut request = request;
+                        request.kind = LinkKind::Direct;
+                        request.out_name = direct_out_name(&request.url);
+                        // Once only: aria2 missing would hand it back here.
+                        request.fallback_direct = false;
+                        self.run_aria(request, handle);
+                        return;
                     } else {
                         let context = FailureContext {
                             used_cookies: request.cookie_file.is_some(),
@@ -809,6 +828,15 @@ pub(crate) struct FailureContext {
     pub has_js_runtime: bool,
 }
 
+/// yt-dlp's answer when no extractor, the generic one included, finds
+/// anything to download at the address.
+fn is_unsupported_url(stderr: &[String], errors: &[String]) -> bool {
+    stderr
+        .iter()
+        .chain(errors)
+        .any(|line| line.to_ascii_lowercase().contains("unsupported url"))
+}
+
 fn friendly_error(stderr: &[String], errors: &[String], context: FailureContext) -> Option<String> {
     let haystack = format!("{}\n{}", stderr.join("\n"), errors.join("\n")).to_ascii_lowercase();
     if haystack.contains("sign in to confirm") || haystack.contains("confirm you") {
@@ -924,6 +952,17 @@ pub fn direct_out_name(url: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unsupported_url_is_recognised_in_either_stream() {
+        let line = vec!["ERROR: Unsupported URL: https://example.com/download?id=5".to_string()];
+        assert!(is_unsupported_url(&line, &[]));
+        assert!(is_unsupported_url(&[], &line));
+        assert!(!is_unsupported_url(
+            &["ERROR: [youtube] abc: Sign in to confirm you're not a bot".to_string()],
+            &[]
+        ));
+    }
 
     #[test]
     fn presets_build_expected_format_arguments() {

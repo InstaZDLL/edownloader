@@ -846,6 +846,7 @@ impl RootView {
                 media,
                 cookie_file,
                 connections,
+                fallback_direct: task.kind == LinkKind::Media && task.site.is_none(),
             };
             task.state = TaskState::Running;
             task.stage = "starting".into();

@@ -186,6 +186,33 @@ pub fn sanitize_filename(name: &str) -> String {
     cleaned
 }
 
+/// Extensions that name a file to fetch as it is. Pages (`.html`, `.php`…)
+/// and stream playlists (`.m3u8`, `.mpd`) are not here: yt-dlp handles them.
+const FILE_EXTENSIONS: &[&str] = &[
+    // archives and disk images
+    "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "zst", "cab", "iso", "img", "dmg",
+    // programs and packages
+    "exe", "msi", "msix", "appx", "apk", "deb", "rpm", "appimage", "bin", "jar", "torrent",
+    // documents and data
+    "pdf", "epub", "mobi", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf",
+    "txt", "csv", "json", "xml", "sql", // images and fonts
+    "jpg", "jpeg", "png", "gif", "webp", "bmp", "tif", "tiff", "svg", "ico", "psd", "heic", "ttf",
+    "otf", "woff", "woff2", // audio and video files served as they are
+    "mp3", "flac", "wav", "m4a", "aac", "ogg", "opus", "mp4", "mkv", "webm", "avi", "mov", "m4v",
+    "wmv", "flv",
+];
+
+/// Whether the URL's last path segment is a file name with a download
+/// extension.
+pub fn looks_like_file(url: &str) -> bool {
+    file_hint(url)
+        .and_then(|name| {
+            name.rsplit_once('.')
+                .map(|(_, ext)| ext.to_ascii_lowercase())
+        })
+        .is_some_and(|ext| FILE_EXTENSIONS.contains(&ext.as_str()))
+}
+
 pub fn classify(raw: &str) -> Result<Link, String> {
     let url = normalize(raw)?;
     if url.to_ascii_lowercase().starts_with("magnet:") {
@@ -201,7 +228,12 @@ pub fn classify(raw: &str) -> Result<Link, String> {
         return Err("That link has no host.".into());
     }
     let site = site_label(&host);
-    let kind = if site.is_some() {
+    // A known site is media. Elsewhere the path decides: a file name with a
+    // download extension is a plain file for aria2; anything else (a page,
+    // no extension at all) goes to yt-dlp, whose 1,800-odd extractors know
+    // far more sites than this list, and which hands an unsupported link
+    // back to aria2 (engine.rs).
+    let kind = if site.is_some() || !looks_like_file(&url) {
         LinkKind::Media
     } else {
         LinkKind::Direct
@@ -241,10 +273,32 @@ mod tests {
     }
 
     #[test]
-    fn lookalike_hosts_are_not_media() {
+    fn lookalike_hosts_are_not_labelled() {
         let link = classify("https://notyoutube.com/watch?v=1").unwrap();
-        assert_eq!(link.kind, LinkKind::Direct);
         assert_eq!(link.site, None);
+    }
+
+    /// yt-dlp knows far more sites than the label list: a page on any host
+    /// goes to it, a file name with a download extension goes to aria2.
+    #[test]
+    fn unknown_hosts_are_routed_by_their_path() {
+        for url in [
+            "https://www.arte.tv/fr/videos/123456-000-A/some-show/",
+            "https://example.com/watch?v=1",
+            "https://example.com/",
+            "https://example.com/video.html",
+            "https://cdn.example.com/live/stream.m3u8",
+        ] {
+            assert_eq!(classify(url).unwrap().kind, LinkKind::Media, "{url}");
+        }
+        for url in [
+            "https://example.com/files/report.pdf",
+            "https://github.com/a/b/releases/download/v1/tool-setup.EXE",
+            "https://mirror.example.org/linux.iso?mirror=eu",
+            "https://example.com/clip.mp4",
+        ] {
+            assert_eq!(classify(url).unwrap().kind, LinkKind::Direct, "{url}");
+        }
     }
 
     #[test]

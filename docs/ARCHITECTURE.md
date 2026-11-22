@@ -37,8 +37,12 @@ src/
 
 ## Routing
 
-The link is classified up front (`urlx.rs`): a known media site goes to
-yt-dlp, a magnet to aria2's BitTorrent engine, everything else to aria2.
+The link is classified up front (`urlx.rs`): a magnet goes to aria2's
+BitTorrent engine; a URL whose file name has a download extension (`.zip`,
+`.exe`, `.pdf`, `.mp4`…) goes to aria2; anything else, a page on any host,
+goes to yt-dlp. When yt-dlp answers "Unsupported URL" for a host the app has
+no label for, the job is handed to aria2 as a plain file. Known sites
+(YouTube, Vimeo, SoundCloud…) get a label and always go to yt-dlp;
 `youtube.com` and `notyoutube.com` are told apart by host, not substring.
 
 - **aria2** runs as a daemon driven over JSON-RPC (`aria2.tellStatus`), not by
