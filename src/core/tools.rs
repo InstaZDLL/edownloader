@@ -53,14 +53,19 @@ fn candidate_dirs() -> Vec<PathBuf> {
     // effect even when an older copy sits next to the executable.
     let mut dirs: Vec<PathBuf> = vec![crate::core::paths::tools_dir()];
     let exe = crate::core::paths::exe_dir();
-    // <exe>/bin, then the three parents that cover `target/debug`,
-    // `target/release` and an installed `<app>/bin`.
+    // A portable drop keeps its tools in <exe>/bin.
     dirs.push(exe.join("bin"));
-    let mut cursor = exe.as_path();
-    for _ in 0..4 {
-        if let Some(parent) = cursor.parent() {
-            dirs.push(parent.join("bin"));
-            cursor = parent;
+    // Development builds run from `target/<profile>`: the parents cover the
+    // workspace's `bin/`. A release build never walks up: a portable copy
+    // run from `C:\Something\edownloader.exe` would otherwise trust
+    // `C:\bin`, a folder any local user may create and fill.
+    if cfg!(debug_assertions) {
+        let mut cursor = exe.as_path();
+        for _ in 0..4 {
+            if let Some(parent) = cursor.parent() {
+                dirs.push(parent.join("bin"));
+                cursor = parent;
+            }
         }
     }
     // Development builds run from `target/<profile>`; the crate root is the

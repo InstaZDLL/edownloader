@@ -1218,12 +1218,7 @@ impl RootView {
             cx.notify();
             return;
         }
-        let domain = if jar.domain.is_empty() {
-            "cookies".to_string()
-        } else {
-            jar.domain.replace('.', "_")
-        };
-        let path = dir.join(format!("{domain}-cookies.txt"));
+        let path = dir.join(export_file_name(&jar.domain));
         match std::fs::write(&path, jar.netscape()) {
             Ok(()) => {
                 self.notice = Some(Notice::ok(format!("Exported to {}", path.display())));
@@ -1384,6 +1379,30 @@ impl RootView {
     }
 }
 
+/// `<domain>-cookies.txt`, as a plain file name. The domain comes from an
+/// imported file, so it may hold anything (`..\..\x`): every character but
+/// ASCII letters, digits and `-` becomes `_`, and it is capped, so the export
+/// always lands in the download folder.
+fn export_file_name(domain: &str) -> String {
+    let safe: String = domain
+        .chars()
+        .take(64)
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let safe = safe.trim_matches('_');
+    if safe.is_empty() {
+        "cookies.txt".to_string()
+    } else {
+        format!("{safe}-cookies.txt")
+    }
+}
+
 /// Ask yt-dlp to read the browser's cookie store and persist it as a jar.
 ///
 /// yt-dlp exports the jar to `--cookies` on exit even when extraction fails,
@@ -1463,4 +1482,31 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("secondary-tab", NextTab, None),
         KeyBinding::new("secondary-shift-tab", PrevTab, None),
     ]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::export_file_name;
+
+    #[test]
+    fn cookie_exports_are_plain_file_names() {
+        assert_eq!(export_file_name("youtube.com"), "youtube_com-cookies.txt");
+        assert_eq!(export_file_name(""), "cookies.txt");
+        for hostile in [
+            r"..\..\Startup\x",
+            "../../etc",
+            "a/b",
+            r"C:\x",
+            "..",
+            "con:x",
+        ] {
+            let name = export_file_name(hostile);
+            assert!(
+                crate::core::net::is_plain_file_name(&name),
+                "{hostile} -> {name}"
+            );
+            assert!(!name.contains(".."), "{hostile} -> {name}");
+        }
+        assert!(export_file_name(&"x".repeat(500)).len() < 100);
+    }
 }

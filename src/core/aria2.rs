@@ -59,12 +59,14 @@ fn free_port() -> Result<u16, String> {
     Ok(port)
 }
 
+/// The RPC token: 128 bits from the OS's generator. The loopback socket is
+/// reachable by every local process, so a guessable token (time and pid, as
+/// it once was) would let any of them drive aria2 and write anywhere this
+/// user can.
 fn make_secret() -> String {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(1);
-    format!("{:x}{:x}", nanos, std::process::id())
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).expect("the OS random generator is unavailable");
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// Decode a `Transfer-Encoding: chunked` body. aria2 answers with

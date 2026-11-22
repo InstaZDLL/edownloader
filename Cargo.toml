@@ -25,6 +25,7 @@ sha2 = "0.10"
 # installers it points at (minisign, as WaveFlow and QuickPlay do).
 semver = "1"
 minisign-verify = "0.3.0"
+getrandom = "0.3"
 
 [build-dependencies]
 # Embeds the icon and a VERSIONINFO block in the Windows executable (build.rs).
