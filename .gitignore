@@ -1,0 +1,34 @@
+# build output
+/target
+
+# The tools are not in the repository: the app downloads them at first launch
+# into %LOCALAPPDATA%\edownloader\tools (src/core/setup.rs). A local bin/ next
+# to Cargo.toml still works for development, it is just never committed
+# (ffmpeg alone is over GitHub's 100 MB file limit).
+/bin/
+*.exe
+*.pdb
+
+# screenshots and icons: only the ones the README and the build use
+*.png
+!/docs/*.png
+!/assets/*.png
+
+# release keys and certificates never leave the machine (docs/RELEASING.md)
+/secrets/
+*.pfx
+*.key
+
+# downloader leftovers
+*.aria2
+*.part
+*.ytdl
+*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# local scratch space used while building this project
+/scaffold
+/_probe

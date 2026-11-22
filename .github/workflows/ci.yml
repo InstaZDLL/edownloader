@@ -1,0 +1,50 @@
+# Format, lint and test on every push to main and every pull request, on
+# Windows, the platform edownloader is released for. The toolchain comes from
+# rust-toolchain.toml.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Windows
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  scripts:
+    name: Release scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: shellcheck scripts/release/*.sh
+      # The R2 copy, end to end without credentials or network.
+      - name: publish-r2.sh dry run
+        run: |
+          mkdir -p "$RUNNER_TEMP/dist"
+          echo installer > "$RUNNER_TEMP/dist/edownloader_9.9.9_x64-setup.exe"
+          echo '{"version":"9.9.9","platforms":{"windows-x86_64":{"url":"https://github.com/x/y/releases/download/v9.9.9/edownloader_9.9.9_x64-setup.exe","signature":"s"}}}' > "$RUNNER_TEMP/dist/latest.json"
+          R2_DRY_RUN=1 R2_DRY_RUN_OUT="$RUNNER_TEMP/r2.json" TAG_NAME=v9.9.9 \
+            bash scripts/release/publish-r2.sh "$RUNNER_TEMP/dist" "$RUNNER_TEMP/dist/latest.json"
+          jq -e '.platforms["windows-x86_64"].url == "https://download.waveflow.app/edownloader/releases/v9.9.9/edownloader_9.9.9_x64-setup.exe"' "$RUNNER_TEMP/r2.json"

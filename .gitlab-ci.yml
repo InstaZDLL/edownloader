@@ -1,0 +1,260 @@
+# GitLab CI/CD: the standby twin of .github/workflows/ci.yml and release.yml.
+#
+# Nothing runs it while the repository lives on GitHub: the workflow below is
+# off until a project variable turns it on. It is here so that losing the
+# GitHub account costs a few hours of setup rather than a rewrite of the
+# release pipeline: docs/RELEASING.md#switching-to-gitlab says what to create
+# first, and what this file does not replace.
+#
+# What it covers:
+#   - on a merge request and on the default branch: the checks of ci.yml;
+#   - on a tag vX.Y.Z: the installer of release.yml, signed as it signs it,
+#     published on the R2 bucket, the host the updater reads once GitHub is
+#     gone (src/core/update.rs), and as a GitLab release whose files are
+#     links there.
+#
+# The update manifest is signed by scripts/release/sign-manifest.sh and
+# copied by scripts/release/publish-r2.sh, which release.yml runs too. The
+# difference is where the manifest points: on GitHub at the release (then
+# copied to R2), here straight at R2, the only host there is.
+#
+# Runners (GitLab.com hosted): Windows saas-windows-medium-amd64 (2 vCPU,
+# beta, PowerShell, no `image:`, Visual Studio Build Tools and Git
+# preinstalled, Rust not) and Linux saas-linux-medium-amd64, both on every
+# tier.
+
+# Off until the project variable EDOWNLOADER_GITLAB_CI is "on": while GitHub is
+# home, main and the tags are pushed here as a copy, and a tag would otherwise
+# start a release that replaces GitHub's on R2.
+workflow:
+  rules:
+    - if: $EDOWNLOADER_GITLAB_CI != "on"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+  auto_cancel:
+    on_new_commit: interruptible
+
+stages:
+  - check
+  - build
+  - sign
+  - publish
+
+variables:
+  # The bucket's public domain, as compiled into the app.
+  R2_PUBLIC_URL: https://download.waveflow.app
+  CARGO_PACKAGER_VERSION: "0.11.8"
+  RSIGN_VERSION: "0.6.7"
+
+# ---------------------------------------------------------------- templates
+
+.ci-rules:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+
+.release-rules:
+  rules:
+    - if: $CI_COMMIT_TAG
+
+.linux-medium:
+  tags: [saas-linux-medium-amd64]
+
+# Secrets are scoped to three GitLab environments (docs/RELEASING.md): only
+# sign-windows (certificate), sign-manifest (release key) and publish (R2
+# token) name one, and none of them compiles anything. The jobs that compile
+# also drop the variables, a guard against one scoped too widely.
+.drop-secrets-bash: &drop-secrets-bash
+  - unset EDOWNLOADER_UPDATE_KEY SIGNTOOL_PFX_BASE64 SIGNTOOL_PFX_PASSWORD R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ACCOUNT_ID R2_BUCKET
+
+.rustup-bash: &rustup-bash
+  - curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+  - export PATH="$HOME/.cargo/bin:$PATH"
+  - rustup toolchain install
+  - rustc --version
+
+# The compiler comes from rust-toolchain.toml.
+.rustup-windows: &rustup-windows
+  - $ProgressPreference = 'SilentlyContinue'
+  - Invoke-WebRequest https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
+  - .\rustup-init.exe -y --profile minimal --default-toolchain none
+  - $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+  - rustup toolchain install
+  - rustc --version
+
+.rust-windows:
+  tags: [saas-windows-medium-amd64]
+  before_script:
+    - foreach ($v in 'EDOWNLOADER_UPDATE_KEY', 'SIGNTOOL_PFX_BASE64', 'SIGNTOOL_PFX_PASSWORD', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ACCOUNT_ID', 'R2_BUCKET') { if (Test-Path "Env:$v") { Remove-Item "Env:$v" } }
+    - *rustup-windows
+
+# ------------------------------------------------------------- checks (ci.yml)
+
+rust-windows:
+  extends: [.ci-rules, .rust-windows]
+  stage: check
+  interruptible: true
+  timeout: 2h
+  script:
+    - cargo fmt --all --check
+    - cargo clippy --all-targets --locked -- -D warnings
+    - cargo test --locked
+
+# ------------------------------------------------------- release (release.yml)
+
+version:
+  extends: [.release-rules, .linux-medium]
+  stage: check
+  image: alpine:3.20
+  script:
+    - version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+    - test "v$version" = "$CI_COMMIT_TAG" || { echo "tag $CI_COMMIT_TAG does not match version $version"; exit 1; }
+    - test -f "docs/releases/$CI_COMMIT_TAG.md" || { echo "docs/releases/$CI_COMMIT_TAG.md is missing"; exit 1; }
+
+# cargo-packager, built in a job of its own for sign-windows to run.
+tools-windows:
+  extends: [.release-rules, .rust-windows]
+  stage: build
+  needs: [version]
+  timeout: 2h
+  script:
+    - cargo install cargo-packager --version "$env:CARGO_PACKAGER_VERSION" --locked --root "$env:CI_PROJECT_DIR\tools"
+  artifacts:
+    paths: [tools/bin/]
+    expire_in: 1 week
+
+release-windows:
+  extends: [.release-rules, .rust-windows]
+  stage: build
+  needs: [version]
+  timeout: 3h
+  script:
+    - cargo test --locked
+    - cargo build --release --locked
+  artifacts:
+    paths: [target/release/edownloader.exe]
+    expire_in: 1 week
+
+# Authenticode, as release.yml does it. Nothing is compiled here.
+sign-windows:
+  extends: .release-rules
+  stage: sign
+  needs: [release-windows, tools-windows]
+  tags: [saas-windows-medium-amd64]
+  environment:
+    name: release-signing
+  timeout: 1h
+  before_script:
+    - *rustup-windows
+  script:
+    - $env:Path = "$env:CI_PROJECT_DIR\tools\bin;$env:Path"
+    - if (-not $env:SIGNTOOL_PFX_BASE64 -or -not $env:SIGNTOOL_PFX_PASSWORD) { Write-Error "SIGNTOOL_PFX_BASE64 and SIGNTOOL_PFX_PASSWORD are required to publish a release"; exit 1 }
+    - $pfx = Join-Path $env:CI_PROJECT_DIR "signing.pfx"
+    - "[IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:SIGNTOOL_PFX_BASE64))"
+    - $password = ConvertTo-SecureString $env:SIGNTOOL_PFX_PASSWORD -AsPlainText -Force
+    - Remove-Item Env:SIGNTOOL_PFX_BASE64, Env:SIGNTOOL_PFX_PASSWORD
+    - $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+    - Remove-Item $pfx
+    - $thumbprint = $cert.Thumbprint
+    - Set-Content -Path (Join-Path $env:CI_PROJECT_DIR "signing.thumbprint") -Value $thumbprint
+    - if (-not $cert.HasPrivateKey) { Write-Error "the PFX has no private key"; exit 1 }
+    - Write-Host "Signing with $($cert.Subject) ($thumbprint), valid until $($cert.NotAfter)"
+    - >-
+      Add-Content Cargo.toml "`n[package.metadata.packager.windows]`ndigest-algorithm = `"SHA256`"`ncertificate-thumbprint = `"$thumbprint`"`ntimestamp-url = `"http://timestamp.digicert.com`"`ntsp = true"
+    - cargo packager --release --formats nsis
+    - >-
+      foreach ($file in @(Get-ChildItem target/packager/*.exe) + @(Get-Item target/release/edownloader.exe)) {
+      $sig = Get-AuthenticodeSignature $file.FullName;
+      if ($sig.Status.ToString() -notin @('Valid', 'UnknownError', 'NotTrusted')) { Write-Error "$($file.Name) has a bad signature ($($sig.Status))"; exit 1 }
+      if ($sig.SignerCertificate.Thumbprint -ne $thumbprint) { Write-Error "$($file.Name) is not signed with the release certificate"; exit 1 }
+      if (-not $sig.TimeStamperCertificate) { Write-Error "$($file.Name) has no timestamp"; exit 1 }
+      Write-Host "$($file.Name): signed by $($sig.SignerCertificate.Subject), $($sig.Status)" }
+    - $lines = Get-ChildItem target/packager/*.exe | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name }
+    - "[IO.File]::WriteAllText((Join-Path $PWD target/packager/SHA256SUMS.txt), (($lines -join \"`n\") + \"`n\"))"
+  after_script:
+    - $file = Join-Path $env:CI_PROJECT_DIR "signing.thumbprint"
+    - if (Test-Path $file) { $t = (Get-Content $file).Trim(); Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq $t } | Remove-Item; Remove-Item $file }
+    - $pfx = Join-Path $env:CI_PROJECT_DIR "signing.pfx"; if (Test-Path $pfx) { Remove-Item $pfx }
+  artifacts:
+    paths: [target/packager/*.exe, target/packager/SHA256SUMS.txt]
+    expire_in: 1 week
+
+# rsign, built in a job of its own for sign-manifest to run.
+tools-linux:
+  extends: [.release-rules, .linux-medium]
+  stage: build
+  needs: [version]
+  image: ubuntu:24.04
+  timeout: 1h
+  variables:
+    DEBIAN_FRONTEND: noninteractive
+  script:
+    - *drop-secrets-bash
+    - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl build-essential
+    - *rustup-bash
+    - cargo install rsign2 --version "$RSIGN_VERSION" --locked --root "$CI_PROJECT_DIR/tools"
+  artifacts:
+    paths: [tools/bin/]
+    expire_in: 1 week
+
+.gather-dist: &gather-dist
+  - mkdir -p dist
+  - cp target/packager/*.exe target/packager/SHA256SUMS.txt dist/
+
+# The update manifest, signed with the release key and pointing at R2.
+sign-manifest:
+  extends: [.release-rules, .linux-medium]
+  stage: sign
+  image: ubuntu:24.04
+  needs: [sign-windows, tools-linux]
+  environment:
+    name: release-manifest
+  variables:
+    DEBIAN_FRONTEND: noninteractive
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends jq
+    - export PATH="$CI_PROJECT_DIR/tools/bin:$PATH"
+    - *gather-dist
+    - >-
+      UPDATE_KEY="$EDOWNLOADER_UPDATE_KEY" VERSION="${CI_COMMIT_TAG#v}"
+      bash scripts/release/sign-manifest.sh dist "${R2_PUBLIC_URL%/}/edownloader/releases/$CI_COMMIT_TAG" dist/latest.json
+  artifacts:
+    paths: [dist/latest.json]
+    expire_in: 1 week
+
+# R2 is the only host here, so missing R2 variables fail the release. The
+# GitLab release holds links, not files. The AWS CLI is AWS's own image,
+# pinned by digest.
+publish:
+  extends: [.release-rules, .linux-medium]
+  stage: publish
+  resource_group: r2-edownloader
+  image:
+    name: amazon/aws-cli:2.38.1@sha256:733d5be1015825e4038c6016f3fa9954868ddee1f611b73be795a9cc2e706bfd
+    entrypoint: [""]
+  needs: [sign-windows, sign-manifest]
+  environment:
+    name: release-publish
+  script:
+    - dnf install -y -q jq
+    - export TAG_NAME="$CI_COMMIT_TAG"
+    - *gather-dist
+    - test -f dist/latest.json
+    - test "$(bash scripts/release/publish-r2.sh --check)" = configured || { echo "the four R2_* variables are required"; exit 1; }
+    - bash scripts/release/publish-r2.sh dist dist/latest.json
+    - |
+      base="${R2_PUBLIC_URL%/}/edownloader/releases/$TAG_NAME"
+      links=$(cd dist && for f in *; do [ "$f" = latest.json ] || printf '%s\n' "$f"; done |
+        jq -R --arg base "$base" '{name: ., url: ($base + "/" + .), link_type: "package"}' | jq -s .)
+      jq -n --arg tag "$TAG_NAME" --rawfile notes "docs/releases/$TAG_NAME.md" --argjson links "$links" \
+        '{tag_name: $tag, name: ("edownloader " + $tag), description: $notes, assets: {links: $links}}' > release.json
+      code=$(curl -sS -o response.json -w '%{http_code}' -X POST \
+        -H "JOB-TOKEN: $CI_JOB_TOKEN" -H "Content-Type: application/json" \
+        --data @release.json "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases")
+      case "$code" in
+        201) echo "GitLab release $TAG_NAME created" ;;
+        409) echo "GitLab release $TAG_NAME already exists" ;;
+        *) cat response.json; exit 1 ;;
+      esac

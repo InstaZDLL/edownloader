@@ -1,0 +1,269 @@
+# Builds the Windows installer for a version tag (`v0.1.0`) and publishes it
+# as a GitHub release: a per-user NSIS installer, Authenticode-signed with the
+# self-signed certificate, its SHA-256 checksum, the update manifest the app
+# reads at launch (latest.json, minisign-signed) and the notes from
+# docs/releases/<tag>.md. Then the whole release is copied to R2, the
+# updater's second host. Nothing is built unless the tag matches Cargo.toml
+# and the tests pass.
+#
+# It can also be run by hand (Actions › Release › Run workflow) for an
+# existing tag: files rebuilt replace their namesakes on the release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  # The packaging tools, pinned.
+  CARGO_PACKAGER_VERSION: "0.11.8"
+  # minisign, in Rust: signs the installers the app updates itself from.
+  RSIGN_VERSION: "0.6.7"
+
+# One run per tag at a time: two would replace each other's files.
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Tag matches Cargo.toml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.tag.outputs.sha }}
+    steps:
+      # The input must name a tag; every job then checks out the commit it
+      # points to now, so a tag moved during the run cannot mix two sources.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - id: tag
+        run: |
+          sha=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")
+          test "$sha" = "$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - run: |
+          version=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          if [ "v$version" != "$RELEASE_TAG" ]; then
+            echo "::error::tag $RELEASE_TAG does not match version $version"
+            exit 1
+          fi
+          test -f "docs/releases/$RELEASE_TAG.md" || { echo "::error::docs/releases/$RELEASE_TAG.md is missing"; exit 1; }
+
+  windows:
+    name: Windows installer
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+          persist-credentials: false
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo test --locked
+      - run: cargo install cargo-packager --version "$env:CARGO_PACKAGER_VERSION" --locked
+      # Everything is compiled before the certificate enters the runner, so
+      # no build script of any dependency runs while the key is importable;
+      # cargo-packager has no build hook (Cargo.toml) and packages this.
+      - run: cargo build --release --locked
+
+      # Authenticode with the self-signed certificate (the same two secrets
+      # as WaveFlow, QuickPlay and Resona): files are signed, so tampering
+      # shows, but Windows does not trust the publisher and SmartScreen still
+      # warns. A certificate from a CA in Microsoft's Trusted Root Program in
+      # the same two secrets is all it takes to change that.
+      - name: Import the signing certificate
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.SIGNTOOL_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.SIGNTOOL_PFX_PASSWORD }}
+        run: |
+          if (-not $env:PFX_BASE64 -or -not $env:PFX_PASSWORD) {
+            Write-Error "SIGNTOOL_PFX_BASE64 and SIGNTOOL_PFX_PASSWORD are required to publish a release"
+            exit 1
+          }
+          Write-Host "::add-mask::$env:PFX_PASSWORD"
+          $pfx = Join-Path $env:RUNNER_TEMP "signing.pfx"
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+            $password = ConvertTo-SecureString $env:PFX_PASSWORD -AsPlainText -Force
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          } finally {
+            Remove-Item $pfx -ErrorAction SilentlyContinue
+          }
+          $thumbprint = $cert.Thumbprint
+          # Recorded first, so the cleanup step removes the certificate
+          # whichever way this step fails.
+          "SIGNING_THUMBPRINT=$thumbprint" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          if (-not $cert.HasPrivateKey) { Write-Error "the PFX has no private key"; exit 1 }
+          Write-Host "Signing with $($cert.Subject) ($thumbprint), valid until $($cert.NotAfter)"
+          @"
+
+          [package.metadata.packager.windows]
+          digest-algorithm = "SHA256"
+          certificate-thumbprint = "$thumbprint"
+          timestamp-url = "http://timestamp.digicert.com"
+          tsp = true
+          "@ | Add-Content Cargo.toml
+
+      - run: cargo packager --release --formats nsis
+
+      - name: Check the signatures
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem target/packager/*.exe) + @(Get-Item target/release/edownloader.exe)
+          foreach ($file in $files) {
+            $sig = Get-AuthenticodeSignature $file.FullName
+            # A self-signed certificate reads "UnknownError" (untrusted root)
+            # or "NotTrusted"; anything else, HashMismatch first, means the
+            # signature does not cover the file as it is.
+            if ($sig.Status.ToString() -notin @('Valid', 'UnknownError', 'NotTrusted')) {
+              Write-Error "$($file.Name) has a bad signature ($($sig.Status)): $($sig.StatusMessage)"
+              exit 1
+            }
+            # UnknownError covers any chain failure: it passes only for a
+            # chain of this certificate alone whose one fault is its root.
+            if ($sig.Status.ToString() -eq 'UnknownError') {
+              $chain = New-Object System.Security.Cryptography.X509Certificates.X509Chain
+              $chain.ChainPolicy.RevocationMode = [System.Security.Cryptography.X509Certificates.X509RevocationMode]::NoCheck
+              $null = $chain.Build($sig.SignerCertificate)
+              $faults = @($chain.ChainStatus | ForEach-Object { $_.Status.ToString() })
+              if ($chain.ChainElements.Count -ne 1 -or $faults.Count -ne 1 -or $faults[0] -ne 'UntrustedRoot') {
+                Write-Error "$($file.Name): signature chain fails for another reason ($($faults -join ', '))"
+                exit 1
+              }
+            }
+            if ($sig.SignerCertificate.Thumbprint -ne $env:SIGNING_THUMBPRINT) {
+              Write-Error "$($file.Name) is not signed with the release certificate"
+              exit 1
+            }
+            if (-not $sig.TimeStamperCertificate) {
+              Write-Error "$($file.Name) has no timestamp"
+              exit 1
+            }
+            Write-Host "$($file.Name): signed by $($sig.SignerCertificate.Subject), $($sig.Status)"
+          }
+
+      - name: Remove the signing certificate from the runner
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:SIGNING_THUMBPRINT) {
+            Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq $env:SIGNING_THUMBPRINT } | Remove-Item
+            Write-Host "certificate removed from the store"
+          }
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem target/packager/*.exe | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          }
+          # LF line ends, as sha256sum writes them.
+          $sums = Join-Path $PWD target/packager/SHA256SUMS.txt
+          [IO.File]::WriteAllText($sums, (($lines -join "`n") + "`n"))
+          Get-Content $sums
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows
+          path: |
+            target/packager/*.exe
+            target/packager/SHA256SUMS.txt
+          if-no-files-found: error
+
+  publish:
+    name: GitHub release
+    needs: [version, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - run: ls -la dist
+      # The tag must still point where the installer was built from.
+      - name: Tag unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILT_SHA: ${{ needs.version.outputs.sha }}
+        run: |
+          now=$(gh api "repos/$GITHUB_REPOSITORY/commits/refs/tags/$RELEASE_TAG" --jq .sha)
+          if [ "$now" != "$BUILT_SHA" ]; then
+            echo "::error::$RELEASE_TAG moved from $BUILT_SHA to $now during the run"
+            exit 1
+          fi
+      # The update manifest the app reads at launch (src/core/update.rs),
+      # signed by scripts/release/sign-manifest.sh, which .gitlab-ci.yml runs
+      # too. rsign is built in a step of its own, so no build script sees
+      # the key.
+      - run: cargo install rsign2 --version "$RSIGN_VERSION" --locked
+      - name: Update manifest
+        env:
+          UPDATE_KEY: ${{ secrets.EDOWNLOADER_UPDATE_KEY }}
+        run: |
+          export VERSION=${RELEASE_TAG#v}
+          bash scripts/release/sign-manifest.sh dist \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG" dist/latest.json
+      - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: edownloader ${{ env.RELEASE_TAG }}
+          body_path: docs/releases/${{ env.RELEASE_TAG }}.md
+          files: dist/*
+          generate_release_notes: false
+
+  # The release copied to the R2 bucket by scripts/release/publish-r2.sh:
+  # what keeps updates and downloads working if the GitHub account does not.
+  # Without the R2_* secrets it ends green after saying so; with only some of
+  # them it fails, alone, after the GitHub release is out.
+  mirror:
+    name: Copy to R2
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: r2-edownloader
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: scripts
+          persist-credentials: false
+      - name: Copy the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        run: |
+          if [ "$(bash scripts/release/publish-r2.sh --check)" = absent ]; then
+            echo "::notice::No R2_* secret set: the release is not copied to R2"
+            exit 0
+          fi
+          aws --version
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/release"
+          TAG_NAME="$RELEASE_TAG" bash scripts/release/publish-r2.sh "$RUNNER_TEMP/release" "$RUNNER_TEMP/release/latest.json"

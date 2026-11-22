@@ -1,0 +1,61 @@
+[package]
+name = "edownloader"
+version = "0.1.0"
+edition = "2021"
+description = "One field. All your downloads: direct links through aria2, media through yt-dlp, with a cookie jar for YouTube."
+authors = ["InstaZDLL"]
+license = "MIT"
+repository = "https://github.com/InstaZDLL/edownloader"
+publish = false
+
+[dependencies]
+gpui = "0.2.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+unicode-segmentation = "1"
+# Updates and the tool installer (src/core/net.rs, update.rs, setup.rs):
+# HTTPS with rustls and the Mozilla roots, no system TLS. Blocking, on the
+# engine's own threads, like everything else that waits on I/O.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+# ffmpeg, aria2 and Deno ship as zip archives; reading is all that is needed.
+zip = { version = "9.8.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+# Every tool is checked against the SHA-256 its project publishes.
+sha2 = "0.10"
+# Versions in the update manifest, and the release key's signatures on the
+# installers it points at (minisign, as WaveFlow and QuickPlay do).
+semver = "1"
+minisign-verify = "0.3.0"
+
+[build-dependencies]
+# Embeds the icon and a VERSIONINFO block in the Windows executable (build.rs).
+winresource = "0.1.34"
+
+[profile.release]
+opt-level = 2
+lto = "thin"
+strip = "symbols"
+
+# ── Installer (cargo-packager) ──────────────────────────────────────────────
+# `cargo packager --release --formats nsis`, after `cargo build --release
+# --locked`: no build hook, so the release workflow compiles everything before
+# the signing certificate is imported. The installer is per user (no
+# administrator rights) and does not carry yt-dlp, aria2 or ffmpeg: the app
+# offers to download them at first launch (src/core/setup.rs). The default
+# NSIS template already takes the flags the updater passes: /S silent, /P
+# passive, /NS no new shortcuts, /R relaunch.
+[package.metadata.packager]
+product-name = "edownloader"
+identifier = "app.edownloader.desktop"
+publisher = "InstaZDLL"
+category = "Utility"
+icons = ["assets/icon.ico", "assets/icon-256.png"]
+out-dir = "target/packager"
+binaries = [{ path = "edownloader", main = true }]
+license-file = "LICENSE"
+resources = [{ src = "LICENSE", target = "LICENSE.txt" }]
+
+[package.metadata.packager.nsis]
+installer-icon = "assets/icon.ico"
+installer-mode = "currentUser"
+languages = ["English", "French"]
+display-language-selector = false
