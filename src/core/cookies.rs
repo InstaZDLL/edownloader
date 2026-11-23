@@ -678,6 +678,65 @@ mod tests {
         assert_eq!(detect("just words"), CookieFormat::Unknown);
     }
 
+    /// The Cookies Extractor extension (chekun/cookies-extractor): "Copy as
+    /// JSON Cookie" is `JSON.stringify(chrome.cookies.getAll(…), null, 2)`,
+    /// "Copy as Header Cookie" joins `name=value` with a bare `;`.
+    #[test]
+    fn cookies_extractor_exports_are_accepted() {
+        let json = r#"[
+  {
+    "domain": ".youtube.com",
+    "expirationDate": 1830000000.512345,
+    "hostOnly": false,
+    "httpOnly": true,
+    "name": "SID",
+    "path": "/",
+    "sameSite": "unspecified",
+    "secure": false,
+    "session": false,
+    "storeId": "0",
+    "value": "abc"
+  },
+  {
+    "domain": ".youtube.com",
+    "expirationDate": 1830000000,
+    "hostOnly": false,
+    "httpOnly": true,
+    "name": "LOGIN_INFO",
+    "path": "/",
+    "sameSite": "no_restriction",
+    "secure": true,
+    "session": false,
+    "storeId": "0",
+    "value": "xyz"
+  },
+  {
+    "domain": "www.youtube.com",
+    "hostOnly": true,
+    "httpOnly": false,
+    "name": "PREF",
+    "path": "/",
+    "sameSite": "lax",
+    "secure": true,
+    "session": true,
+    "storeId": "0",
+    "value": "f6=40000000"
+  }
+]"#;
+        let cookies = parse_auto(json, None).unwrap();
+        assert_eq!(cookies.len(), 3);
+        assert_eq!(cookies[0].expires, 1_830_000_000);
+        assert!(cookies[0].http_only);
+        assert!(!cookies[2].include_subdomains);
+        assert_eq!(cookies[2].expires, 0);
+        let jar = CookieJar::build("", "clipboard", cookies);
+        assert_eq!(jar.youtube().state, AuthState::SignedIn);
+
+        let header = parse_auto("SID=abc;LOGIN_INFO=xyz", Some("youtube.com")).unwrap();
+        assert_eq!(header.len(), 2);
+        assert_eq!(header[1].name, "LOGIN_INFO");
+    }
+
     #[test]
     fn netscape_keeps_httponly_prefix_and_values() {
         let cookies = parse_netscape(sample_netscape()).unwrap();

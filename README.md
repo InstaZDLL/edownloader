@@ -157,6 +157,25 @@ YouTube answers most logged-out downloaders with *"Sign in to confirm you're not
 
 Some Chromium builds lock their cookie store with app-bound encryption that no tool can read; edownloader says so and points you to the paste route.
 
+### The quick way: Cookies Extractor
+
+When **From browser** cannot read your browser (Chrome, Edge and Brave lock their cookies), the [Cookies Extractor](https://chromewebstore.google.com/detail/cookies-extractor/gdbmkehljhmfcjgbjcfaklnabeccddna) extension copies them in one click. It is [open source](https://github.com/chekun/cookies-extractor) and works locally: nothing leaves your browser.
+
+1. Install **Cookies Extractor** from the Chrome Web Store (it works in Chrome, Edge, Brave and other Chromium browsers).
+2. Open [youtube.com](https://www.youtube.com) and make sure you are signed in.
+3. Click the extension's icon, then **Copy as JSON Cookie**:
+
+   <p align="center">
+     <img src="docs/cookies-extractor.png" width="385" alt="The Cookies Extractor popup: the Copy as Header Cookie and Copy as JSON Cookie buttons, the second one highlighted" />
+   </p>
+
+4. In edownloader, open **Cookies** and click **Paste cookies**. The new jar becomes the active one.
+5. Check that it says **signed in**, then paste your YouTube link again.
+
+**Copy as Header Cookie** works too: type `youtube.com` in **Target domain** first, since a header carries no domain. JSON is the better choice: it keeps each cookie's domain and expiry, so edownloader can tell you when they run out.
+
+Cookies are as good as your password for that site: paste them only into edownloader, and re-copy them when edownloader says they have expired.
+
 YouTube also needs a JavaScript runtime to unlock its formats: Deno is installed with the other tools, and Node, Bun or QuickJS are picked up if you already have one.
 
 ## Keyboard
