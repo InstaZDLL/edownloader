@@ -141,28 +141,64 @@ pub(crate) fn resolve(choice: &str) -> Lang {
 }
 
 /// The Windows display language, English when it is not one of ours.
+///
+/// Windows keeps the user's display languages in preference order (Settings
+/// › Time & language › Language); the first one we translate wins. This is
+/// the interface language, not the regional format: a French Windows set to
+/// US date formats is still French.
 pub(crate) fn system() -> Lang {
-    system_tag()
-        .as_deref()
-        .and_then(Lang::from_tag)
+    first_supported(&system_tags())
+}
+
+fn first_supported(tags: &[String]) -> Lang {
+    tags.iter()
+        .find_map(|tag| Lang::from_tag(tag))
         .unwrap_or(Lang::En)
 }
 
 #[cfg(windows)]
-fn system_tag() -> Option<String> {
-    use windows::Win32::Globalization::GetUserDefaultLocaleName;
-    let mut buffer = [0u16; 85];
-    // SAFETY: the buffer is LOCALE_NAME_MAX_LENGTH wide, as the API expects.
-    let len = unsafe { GetUserDefaultLocaleName(&mut buffer) };
-    if len <= 1 {
-        return None;
+fn system_tags() -> Vec<String> {
+    use windows::core::PWSTR;
+    use windows::Win32::Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME};
+
+    let mut count = 0u32;
+    let mut len = 0u32;
+    // SAFETY: the first call only asks for the buffer size; the second gets
+    // a buffer of exactly that many UTF-16 units.
+    unsafe {
+        if GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &mut count, None, &mut len).is_err()
+            || len == 0
+        {
+            return Vec::new();
+        }
+        let mut buffer = vec![0u16; len as usize];
+        if GetUserPreferredUILanguages(
+            MUI_LANGUAGE_NAME,
+            &mut count,
+            Some(PWSTR(buffer.as_mut_ptr())),
+            &mut len,
+        )
+        .is_err()
+        {
+            return Vec::new();
+        }
+        split_multi_sz(&buffer)
     }
-    Some(String::from_utf16_lossy(&buffer[..len as usize - 1]))
 }
 
 #[cfg(not(windows))]
-fn system_tag() -> Option<String> {
-    std::env::var("LANG").ok()
+fn system_tags() -> Vec<String> {
+    std::env::var("LANG").ok().into_iter().collect()
+}
+
+/// `fr-FR\0en-US\0\0` → `["fr-FR", "en-US"]`.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn split_multi_sz(buffer: &[u16]) -> Vec<String> {
+    buffer
+        .split(|&unit| unit == 0)
+        .filter(|name| !name.is_empty())
+        .map(String::from_utf16_lossy)
+        .collect()
 }
 
 fn catalog(lang: Lang) -> &'static HashMap<String, String> {
@@ -368,6 +404,16 @@ mod tests {
         assert_eq!(Lang::from_tag("pt-PT"), Some(Lang::Pt));
         assert_eq!(Lang::from_tag("ko-KR"), None);
         assert_eq!(Lang::from_code("PT-br"), Some(Lang::Pt));
+    }
+
+    #[test]
+    fn the_first_translated_display_language_wins() {
+        let wide: Vec<u16> = "ko-KR\0fr-FR\0en-US\0\0".encode_utf16().collect();
+        let tags = split_multi_sz(&wide);
+        assert_eq!(tags, ["ko-KR", "fr-FR", "en-US"]);
+        assert_eq!(first_supported(&tags), Lang::Fr);
+        assert_eq!(first_supported(&["ko-KR".to_string()]), Lang::En);
+        assert_eq!(first_supported(&[]), Lang::En);
     }
 
     #[test]
