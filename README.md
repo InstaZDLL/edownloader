@@ -116,6 +116,7 @@ From then on edownloader keeps itself up to date: new versions download in the b
 
 ### 🎨 Comfortable
 
+- **In your language**: English, Français, Deutsch, Español, Italiano, Português, 日本語 and 简体中文. It follows Windows by default; switch any time in Settings.
 - **Catppuccin** Latte, Frappé, Macchiato and Mocha, or follow Windows; every flavour is tested for readable contrast.
 - **Keyboard first** (below), a compact window, monospace figures, nothing that isn't used.
 

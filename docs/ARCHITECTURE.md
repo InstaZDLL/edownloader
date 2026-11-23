@@ -46,7 +46,8 @@ Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Code asks for
 (French and Portuguese put 0 with 1, Japanese and Chinese have one form).
 
 The language is Settings › appearance › Language: `system` follows the
-Windows display language, falling back to English. It is a process-wide
+Windows display languages (`GetUserPreferredUILanguages`, in the user's
+order, not the regional format), the first one translated, else English. It is a process-wide
 setting, so the engine's threads word their errors in it too. Technical
 diagnostics (network, RPC, update internals) stay in English.
 
@@ -68,6 +69,10 @@ no label for, the job is handed to aria2 as a plain file. Known sites
   scraping a log, so byte counts, speed and connections are real. Jobs pause
   and resume in place; cancel removes the download.
 - **yt-dlp** runs once per job with a machine-readable `--progress-template`.
+  HLS and DASH streams (`.m3u8`, `.mpd`, and most sites) are fetched with
+  `--concurrent-fragments` set from the connections setting, capped at 8.
+  A `blob:` link is refused up front (it only exists in a browser tab), a
+  403 on a copied playlist points at the page's address, and DRM is named.
   Its failures are translated (`engine.rs`): "Sign in to confirm you're not a
   bot" becomes "this needs cookies", storyboard-only answers become "no
   JavaScript runtime".
