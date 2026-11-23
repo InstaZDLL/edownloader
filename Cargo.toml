@@ -75,9 +75,14 @@ depends = ["aria2", "libxkbcommon-x11-0", "libvulkan1"]
 desktop-template = "assets/linux/edownloader.desktop"
 
 [package.metadata.packager.appimage]
-# What the app opens at runtime (dlopen) rather than links: bundled, so the
-# AppImage starts on systems without them.
-libs = ["libxkbcommon-x11.so.0", "libxkbcommon.so.0", "libvulkan.so.1", "libwayland-client.so.0", "libwayland-cursor.so.0"]
+# The graphics stack comes from the system, never from the AppImage: the
+# Vulkan drivers (Mesa) are loaded from the host and need the host's own
+# libwayland-client, and xkbcommon must match the host's keyboard data. A
+# copy from the build machine (Ubuntu 22.04) is older, and with it Mesa on a
+# current system finds no GPU (0.3.0 did not start on Fedora 44). So the app
+# links xkbcommon without bundling it, and dlopens Vulkan and Wayland from the
+# system, as the .deb and .rpm do.
+excluded-libraries = ["libxkbcommon*", "libvulkan*", "libwayland-*"]
 
 # The .rpm (cargo generate-rpm, after a release build).
 [package.metadata.generate-rpm]

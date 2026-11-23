@@ -246,6 +246,10 @@ jobs:
           # The AppImage must start far enough to print its own files.
           "${app[0]}" --appimage-extract >/dev/null
           test -x squashfs-root/usr/bin/edownloader
+          # No graphics libraries inside: they must be the system's (see
+          # Cargo.toml, [package.metadata.packager.appimage]).
+          bundled="$(find squashfs-root \( -name 'libwayland-*' -o -name 'libvulkan*' -o -name 'libxkbcommon*' \))"
+          test -z "$bundled" || { echo "::error::bundled graphics libraries: $bundled"; exit 1; }
           rm -rf squashfs-root
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
