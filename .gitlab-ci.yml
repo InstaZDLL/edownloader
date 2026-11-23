@@ -219,7 +219,7 @@ sign-manifest:
     - *gather-dist
     - >-
       UPDATE_KEY="$EDOWNLOADER_UPDATE_KEY" VERSION="${CI_COMMIT_TAG#v}"
-      bash scripts/release/sign-manifest.sh dist "${R2_PUBLIC_URL%/}/edownloader/releases/$CI_COMMIT_TAG" dist/latest.json
+      LINUX_OPTIONAL=1 bash scripts/release/sign-manifest.sh dist "${R2_PUBLIC_URL%/}/edownloader/releases/$CI_COMMIT_TAG" dist/latest.json
   artifacts:
     paths: [dist/latest.json]
     expire_in: 1 week

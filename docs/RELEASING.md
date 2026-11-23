@@ -19,10 +19,19 @@ git push origin main v0.2.0
 | File | What it is |
 | --- | --- |
 | `edownloader_<version>_x64-setup.exe` | per-user NSIS installer (cargo-packager), signed |
-| `SHA256SUMS.txt` | its SHA-256 |
-| `latest.json` | the update manifest: the installer's address and its minisign signature |
+| `edownloader_<version>_amd64.deb`, `_arm64.deb` | Debian/Ubuntu packages (cargo-packager), depend on aria2 |
+| `edownloader-<version>-1.x86_64.rpm`, `.aarch64.rpm` | Fedora/openSUSE packages (cargo-generate-rpm), require aria2 |
+| `edownloader_<version>_x86_64.AppImage`, `_aarch64.AppImage` | portable Linux builds (cargo-packager + linuxdeploy), self-updating |
+| `SHA256SUMS.txt` | the SHA-256 of every package |
+| `latest.json` | the update manifest: the Windows installer's and the AppImages' addresses and minisign signatures |
 
-The installer does **not** carry yt-dlp, aria2, ffmpeg or Deno: the app
+Linux packages are built on Ubuntu 22.04, natively for each architecture
+(`ubuntu-22.04-arm` for arm64), so they run on any distribution with glibc
+2.35 or newer. Building locally on a newer distribution: linuxdeploy's own
+`strip` cannot read recent libraries (`.relr.dyn`), so run cargo-packager
+with `NO_STRIP=1`.
+
+The packages do **not** carry yt-dlp, aria2, ffmpeg or Deno: the app
 offers to install them at first launch (`src/core/setup.rs`), from each
 project's own releases, checksums verified.
 

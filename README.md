@@ -8,13 +8,14 @@
 <p align="center">
   <strong>One field. All your downloads.</strong>
   <br />
-  A small, fast downloader for Windows: videos, music, direct files and magnets, from one field.
+  A small, fast downloader for Windows and Linux: videos, music, direct files and magnets, from one field.
 </p>
 
 <p align="center">
   <a href="https://github.com/InstaZDLL/edownloader/actions/workflows/ci.yml"><img src="https://github.com/InstaZDLL/edownloader/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <img src="https://img.shields.io/github/v/release/InstaZDLL/edownloader?style=flat-square&label=version&color=10b981" alt="Latest version" />
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows11&logoColor=white" alt="Windows 10 and 11" />
+  <img src="https://img.shields.io/badge/platform-Linux%20x86__64%20%7C%20arm64-FCC624?style=flat-square&logo=linux&logoColor=black" alt="Linux x86_64 and arm64" />
   <img src="https://img.shields.io/badge/sites-1%2C800%2B-10b981?style=flat-square" alt="1,800+ sites" />
   <img src="https://img.shields.io/badge/languages-8-10b981?style=flat-square&logo=googletranslate&logoColor=white" alt="8 languages" />
   <img src="https://img.shields.io/badge/rust-1.100-orange?style=flat-square&logo=rust" alt="Rust 1.100" />
@@ -29,7 +30,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/InstaZDLL/edownloader/releases/latest"><img src="https://img.shields.io/badge/Download%20edownloader-Windows%20installer-10b981?style=for-the-badge&logo=windows11&logoColor=white" alt="Download edownloader for Windows" /></a>
+  <a href="https://github.com/InstaZDLL/edownloader/releases/latest"><img src="https://img.shields.io/badge/Download-Windows%20installer-10b981?style=for-the-badge&logo=windows11&logoColor=white" alt="Download edownloader for Windows" /></a>
+  <a href="#linux"><img src="https://img.shields.io/badge/Download-deb%20%C2%B7%20rpm%20%C2%B7%20AppImage-10b981?style=for-the-badge&logo=linux&logoColor=white" alt="Download edownloader for Linux" /></a>
 </p>
 
 <p align="center">
@@ -54,6 +56,8 @@
 
 ## Install
 
+### Windows
+
 1. Download **`edownloader_<version>_x64-setup.exe`** from the [latest release](https://github.com/InstaZDLL/edownloader/releases/latest).
 2. Run it. It installs for your user only: no administrator rights, nothing system-wide.
 3. On first launch, click **Install** in the yellow banner. edownloader fetches the tools it drives — yt-dlp, aria2, ffmpeg and Deno — from their official releases, verifying the checksums yt-dlp, FFmpeg and Deno publish (aria2 publishes none; its version is pinned).
@@ -63,6 +67,20 @@ That's it. Paste a link and press <kbd>Enter</kbd>.
 > **"Windows protected your PC"?** The installer is signed with a self-signed certificate, so SmartScreen does not know the publisher yet. Click **More info › Run anyway**. You can compare the file with `SHA256SUMS.txt` on the release page.
 
 From then on edownloader keeps itself up to date: new versions download in the background, are verified against the release key, and install when you close the app.
+
+### Linux
+
+x86_64 and arm64, on Ubuntu 22.04, Debian 12, Fedora 36 or anything newer. Pick the package for your system from the [latest release](https://github.com/InstaZDLL/edownloader/releases/latest):
+
+| System | Package | Install |
+| --- | --- | --- |
+| Debian, Ubuntu, Mint… | `edownloader_<version>_amd64.deb` / `_arm64.deb` | `sudo apt install ./edownloader_<version>_amd64.deb` |
+| Fedora, openSUSE, RHEL… | `edownloader-<version>-1.x86_64.rpm` / `.aarch64.rpm` | `sudo dnf install ./edownloader-<version>-1.x86_64.rpm` |
+| Anything else | `edownloader_<version>_x86_64.AppImage` / `_aarch64.AppImage` | `chmod +x edownloader_*.AppImage`, then run it |
+
+The `.deb` and `.rpm` bring aria2 from your distribution as a dependency; with the AppImage, install `aria2` with your package manager if you want direct links and magnets. yt-dlp, ffmpeg and Deno install from the banner at first launch, as on Windows, unless your system already has them.
+
+The AppImage updates itself like the Windows app. The `.deb` and `.rpm` tell you when a version is out; your package manager installs it.
 
 ## Why edownloader
 
@@ -117,7 +135,7 @@ From then on edownloader keeps itself up to date: new versions download in the b
 
 ### 🎨 Comfortable
 
-- **In your language**: English, Français, Deutsch, Español, Italiano, Português, 日本語 and 简体中文. It follows Windows by default; switch any time in Settings.
+- **In your language**: English, Français, Deutsch, Español, Italiano, Português, 日本語 and 简体中文. It follows your system language by default; switch any time in Settings.
 - **Catppuccin** Latte, Frappé, Macchiato and Mocha, or follow Windows; every flavour is tested for readable contrast.
 - **Keyboard first** (below), a compact window, monospace figures, nothing that isn't used.
 
@@ -179,7 +197,7 @@ Open **Settings › Tools** and click **update yt-dlp**. Sites change their page
 <details>
 <summary><b>Where do my files go? Where are my settings?</b></summary>
 
-Downloads go to your `Downloads` folder (change it in Settings). Settings and cookie jars live in `%APPDATA%\edownloader`; tools and pending updates in `%LOCALAPPDATA%\edownloader`. Uninstalling from Windows Settings removes the app.
+Downloads go to your `Downloads` folder (change it in Settings). Settings and cookie jars live in `%APPDATA%\edownloader`; tools and pending updates in `%LOCALAPPDATA%\edownloader`. Uninstalling from Windows Settings removes the app. On Linux: `~/.local/share/edownloader` and `~/.cache/edownloader`.
 
 </details>
 
@@ -199,7 +217,7 @@ Download only what you have the right to: your own uploads, freely licensed cont
 
 ## Known limits
 
-- Windows only for now.
+- Windows and Linux; no macOS build yet.
 - No built-in browser for signing in: sessions come from your browser's cookies.
 - Magnets download through aria2; `.torrent` files and seeding are not managed.
 - The queue lives for the session; it is not saved on exit.

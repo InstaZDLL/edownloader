@@ -1,6 +1,6 @@
 # Format, lint and test on every push to main and every pull request, on
-# Windows, the platform edownloader is released for. The toolchain comes from
-# rust-toolchain.toml.
+# Windows and Linux, the platforms edownloader is released for. The
+# toolchain comes from rust-toolchain.toml.
 name: CI
 
 on:
@@ -30,6 +30,28 @@ jobs:
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
 
+  # The Linux build: what GPUI links, the patched xattr (patches/xattr), the
+  # tar.xz extraction of the tool installer. arm64 is built at release only.
+  linux:
+    name: Linux
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config \
+            libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libx11-xcb-dev \
+            libwayland-dev libvulkan-dev libfontconfig1-dev libfreetype6-dev libzstd-dev
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
   scripts:
     name: Release scripts
     runs-on: ubuntu-24.04
@@ -48,3 +70,22 @@ jobs:
           R2_DRY_RUN=1 R2_DRY_RUN_OUT="$RUNNER_TEMP/r2.json" TAG_NAME=v9.9.9 \
             bash scripts/release/publish-r2.sh "$RUNNER_TEMP/dist" "$RUNNER_TEMP/dist/latest.json"
           jq -e '.platforms["windows-x86_64"].url == "https://download.waveflow.app/edownloader/releases/v9.9.9/edownloader_9.9.9_x64-setup.exe"' "$RUNNER_TEMP/r2.json"
+      # The manifest, signed with a key made for this run: one entry per
+      # platform, each signature checking against its file and naming it.
+      - run: cargo install rsign2 --version 0.6.7 --locked
+      - name: sign-manifest.sh with a throwaway key
+        run: |
+          dist="$RUNNER_TEMP/sign"
+          mkdir -p "$dist"
+          for f in edownloader_9.9.9_x64-setup.exe edownloader_9.9.9_x86_64.AppImage edownloader_9.9.9_aarch64.AppImage; do
+            echo "$f" > "$dist/$f"
+          done
+          rsign generate -W -p "$RUNNER_TEMP/test.pub" -s "$RUNNER_TEMP/test.key" </dev/null
+          UPDATE_KEY="$(cat "$RUNNER_TEMP/test.key")" VERSION=9.9.9 \
+            bash scripts/release/sign-manifest.sh "$dist" https://example.com/r "$dist/latest.json"
+          for p in windows-x86_64:edownloader_9.9.9_x64-setup.exe linux-x86_64:edownloader_9.9.9_x86_64.AppImage linux-aarch64:edownloader_9.9.9_aarch64.AppImage; do
+            platform="${p%%:*}" name="${p#*:}"
+            jq -e --arg p "$platform" --arg n "$name" '.platforms[$p].url == "https://example.com/r/" + $n' "$dist/latest.json"
+            jq -r --arg p "$platform" '.platforms[$p].signature' "$dist/latest.json" > "$dist/$name.minisig"
+            rsign verify -p "$RUNNER_TEMP/test.pub" "$dist/$name" | grep -F "edownloader 9.9.9 $name"
+          done

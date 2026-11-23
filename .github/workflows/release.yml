@@ -1,7 +1,8 @@
-# Builds the Windows installer for a version tag (`v0.1.0`) and publishes it
-# as a GitHub release: a per-user NSIS installer, Authenticode-signed with the
-# self-signed certificate, its SHA-256 checksum, the update manifest the app
-# reads at launch (latest.json, minisign-signed) and the notes from
+# Builds edownloader for a version tag (`v0.1.0`) and publishes it as a
+# GitHub release: a per-user NSIS installer, Authenticode-signed with the
+# self-signed certificate; for Linux x86_64 and arm64 a .deb, an .rpm and an
+# AppImage; the SHA-256 of every package, the update manifest the app reads
+# at launch (latest.json, minisign-signed) and the notes from
 # docs/releases/<tag>.md. Then the whole release is copied to R2, the
 # updater's second host. Nothing is built unless the tag matches Cargo.toml
 # and the tests pass.
@@ -27,6 +28,7 @@ env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
   # The packaging tools, pinned.
   CARGO_PACKAGER_VERSION: "0.11.8"
+  CARGO_GENERATE_RPM_VERSION: "0.21.1"
   # minisign, in Rust: signs the installers the app updates itself from.
   RSIGN_VERSION: "0.6.7"
 
@@ -167,27 +169,80 @@ jobs:
             Write-Host "certificate removed from the store"
           }
 
-      - name: Checksums
-        shell: pwsh
-        run: |
-          $lines = Get-ChildItem target/packager/*.exe | ForEach-Object {
-            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
-          }
-          # LF line ends, as sha256sum writes them.
-          $sums = Join-Path $PWD target/packager/SHA256SUMS.txt
-          [IO.File]::WriteAllText($sums, (($lines -join "`n") + "`n"))
-          Get-Content $sums
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows
+          path: target/packager/*.exe
+          if-no-files-found: error
+
+  # Built on Ubuntu 22.04, the oldest still supported: the binary needs a
+  # glibc at least as new as the build machine's, so this one runs on
+  # Ubuntu 22.04, Debian 12, Fedora 36 and anything newer. Each arm64
+  # package is built natively on GitHub's arm64 runner.
+  linux:
+    name: Linux ${{ matrix.arch }}
+    needs: version
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-22.04
+          - arch: aarch64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+          persist-credentials: false
+      # What GPUI links (X11, Wayland, xkbcommon, fonts, Vulkan), and what
+      # linuxdeploy needs to build the AppImage.
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config file \
+            libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libx11-xcb-dev \
+            libwayland-dev libvulkan-dev libvulkan1 \
+            libfontconfig1-dev libfreetype6-dev libzstd-dev
+      - run: rustup show active-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          key: release-${{ matrix.arch }}
+      - run: cargo test --locked
+      - run: |
+          cargo install cargo-packager --version "$CARGO_PACKAGER_VERSION" --locked
+          cargo install cargo-generate-rpm --version "$CARGO_GENERATE_RPM_VERSION" --locked
+      - run: cargo build --release --locked
+      - run: cargo packager --release --formats deb,appimage
+      - run: cargo generate-rpm --output target/packager/
+      - name: Check the packages
+        run: |
+          ls -la target/packager
+          deb=(target/packager/*.deb) rpm=(target/packager/*.rpm) app=(target/packager/*_${{ matrix.arch }}.AppImage)
+          test ${#deb[@]} -eq 1 -a -f "${deb[0]}"
+          test ${#rpm[@]} -eq 1 -a -f "${rpm[0]}"
+          test ${#app[@]} -eq 1 -a -f "${app[0]}"
+          dpkg-deb --info "${deb[0]}"
+          dpkg-deb --contents "${deb[0]}"
+          # The AppImage must start far enough to print its own files.
+          "${app[0]}" --appimage-extract >/dev/null
+          test -x squashfs-root/usr/bin/edownloader
+          rm -rf squashfs-root
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-${{ matrix.arch }}
           path: |
-            target/packager/*.exe
-            target/packager/SHA256SUMS.txt
+            target/packager/*.deb
+            target/packager/*.rpm
+            target/packager/*.AppImage
           if-no-files-found: error
 
   publish:
     name: GitHub release
-    needs: [version, windows]
+    needs: [version, windows, linux]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -202,6 +257,11 @@ jobs:
           path: dist
           merge-multiple: true
       - run: ls -la dist
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum -- *.exe *.deb *.rpm *.AppImage > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       # The tag must still point where the installer was built from.
       - name: Tag unchanged
         env:

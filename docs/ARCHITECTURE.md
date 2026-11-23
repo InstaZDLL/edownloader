@@ -14,7 +14,7 @@ or a socket.
 
 ```text
 src/
-  main.rs            window, key bindings, entry point
+  main.rs            window, key bindings, fonts, entry point
   i18n.rs            interface languages: t!/tn!, plural rules, system language
   app.rs             state: tasks, cookie store, settings, tools, updates, event pump
   views.rs           rendering: title bar, banners, tabs, task list, cookie manager, settings
@@ -22,6 +22,7 @@ src/
   ui/
     text_input.rs    single-line field with IME via EntityInputHandler
     widgets.rs       buttons, chips, segments, progress track, rows
+    frame.rs         resizable window edges where the app draws its own frame (Linux)
   core/
     aria2.rs         daemon + JSON-RPC over a loopback socket (no HTTP crate)
     engine.rs        job orchestration, yt-dlp supervision, progress parsing
@@ -35,6 +36,25 @@ src/
     human.rs         size/speed/ETA/expiry formatting
     paths.rs         data directories, file picker, reveal
 ```
+
+## Linux
+
+The same code, with what differs gathered in a few places:
+
+- **Window**: the app asks for client-side decorations (`main.rs`) and
+  draws its own title bar, as on Windows; `ui/frame.rs` gives back what a
+  system frame does, a band along each edge that resizes the window, with
+  the matching cursor. A double click on the title bar maximizes and
+  restores; a right click opens the window menu.
+- **Fonts**: Inter and JetBrains Mono are compiled in (`assets/fonts`, SIL
+  OFL) and registered at start (`theme::load_fonts`); scripts they lack
+  (CJK) fall back to the system's fonts. Windows keeps Segoe UI and Consolas.
+- **File picker**: GPUI's, which is the XDG desktop portal: the desktop's
+  own chooser, sandboxed or not.
+- **Language**: `LANGUAGE`, then `LC_ALL`, `LC_MESSAGES`, `LANG`.
+- **Build**: GPUI's tar dependency pins `xattr` 0.2.3, which reads
+  `libc::ENOATTR`, gone from libc 0.2.190 on Linux; `patches/xattr` is that
+  crate with the one line changed (`[patch.crates-io]` in Cargo.toml).
 
 ## Languages
 
@@ -108,6 +128,14 @@ yt-dlp as `--js-runtimes`.
 | ffmpeg + ffprobe | `yt-dlp/FFmpeg-Builds` latest, win64 GPL zip | `checksums.sha256` |
 | Deno | `denoland/deno` latest, x86_64 Windows zip | `.zip.sha256sum` |
 
+On Linux (x86_64 and arm64) the same projects' Linux builds are used:
+`yt-dlp_linux` / `yt-dlp_linux_aarch64`, the `linux64` / `linuxarm64` GPL
+`.tar.xz` of FFmpeg-Builds (unpacked by the system's `tar`, only `ffmpeg` and
+`ffprobe`), and Deno's `unknown-linux-gnu` zip, with the same checksums.
+aria2 publishes no Linux build: it comes from the distribution (a dependency
+of the .deb and .rpm), and the banner says so when it is missing. Everything
+placed is made executable.
+
 Only the named executables are taken out of an archive, by file name, so an
 entry path such as `../../x` is never written. A file replaced while it runs
 is reported as "in use" rather than half-written.
@@ -127,12 +155,19 @@ closes (`/S /NS`). The NSIS installer ends a running copy before it replaces
 the files. A copy that was not installed by the installer (no
 `uninstall.exe` beside it) only says that a version is out.
 
+On Linux the manifest's `linux-x86_64` / `linux-aarch64` entries are the
+AppImages. A copy run from an AppImage (`$APPIMAGE`) in a folder it may write
+to replaces that file: the verified AppImage is copied beside it, then
+renamed over it, so it is never seen half-written and the running copy keeps
+its open file. A copy from a .deb or .rpm only says that a version is out:
+the package manager installs it.
+
 ## Data
 
 | What | Where |
 | --- | --- |
-| settings, `cookies.json`, `active-cookies.txt` | `%APPDATA%\edownloader` |
-| installed tools, pending updates | `%LOCALAPPDATA%\edownloader` |
+| settings, `cookies.json`, `active-cookies.txt` | `%APPDATA%\edownloader`, `~/.local/share/edownloader` |
+| installed tools, pending updates | `%LOCALAPPDATA%\edownloader`, `~/.cache/edownloader` |
 | downloads | `~/Downloads` by default |
 
 ## Tests
