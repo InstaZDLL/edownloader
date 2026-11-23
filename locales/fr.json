@@ -19,6 +19,7 @@
   "stage.done": "terminé",
   "stage.checking": "vérification",
   "stage.extracting": "extraction",
+  "stage.listing": "liste des fichiers",
 
   "task.waiting": "{source} · en attente d’un créneau",
   "task.cancelled": "{source} · annulé",
@@ -28,6 +29,8 @@
   "task.left": "reste {eta}",
   "task.site_link": "lien {site}",
   "task.torrent": "Téléchargement BitTorrent",
+  "task.files.one": "{done} / {n} fichier",
+  "task.files.other": "{done} / {n} fichiers",
 
   "input.url": "https://…  ou  magnet:?xt=…",
   "input.domain": "domaine, p. ex. youtube.com",
@@ -293,5 +296,17 @@
   "error.members": "Vidéo réservée aux membres : le jeu de cookies doit appartenir à un compte membre.",
   "error.scheduled": "Il s’agit d’un direct programmé qui n’a pas encore commencé.",
   "error.network": "Le site est injoignable. Vérifiez la connexion ou réessayez.",
-  "error.folder": "Impossible de créer le dossier de téléchargement : {error}"
+  "error.folder": "Impossible de créer le dossier de téléchargement : {error}",
+  "pinterest.unsupported": "Ce lien Pinterest n’est ni une épingle, ni un tableau, ni une section de tableau. Collez le lien de l’un d’eux.",
+  "pinterest.not_found": "Pinterest n’a rien à cette adresse : l’épingle ou le tableau a été supprimé, ou il est secret. Pour vos propres tableaux secrets, importez les cookies d’un navigateur connecté à Pinterest.",
+  "pinterest.denied": "Pinterest a refusé : ce tableau est secret ou privé. Importez les cookies d’un navigateur connecté à Pinterest, puis réessayez.",
+  "pinterest.empty": "Il n’y a aucune épingle ici.",
+  "gallery.not_found": "{site} n’a rien à cette adresse : la publication a été supprimée, ou le lien est erroné.",
+  "gallery.private": "{site} ne montre pas cette publication aux visiteurs : elle est privée, réservée aux adultes ou supprimée. Si votre compte peut la voir, importez les cookies d’un navigateur connecté à {site}, puis réessayez.",
+  "gallery.rate_limited": "{site} limite les requêtes pour le moment. Patientez quelques minutes, puis réessayez : les fichiers déjà téléchargés sont conservés.",
+  "gallery.changed": "{site} a répondu de façon inattendue ; son site a peut-être changé.",
+  "gallery.no_media": "Cette publication n’a ni image ni vidéo à télécharger.",
+  "gallery.no_ffmpeg": "ffmpeg est nécessaire pour enregistrer cette vidéo. Installez les outils depuis le bandeau, puis réessayez.",
+  "gallery.partial.one": "{n} fichier sur {total} n’a pas pu être téléchargé ({error}). Réessayez pour ne récupérer que celui-là.",
+  "gallery.partial.other": "{n} fichiers sur {total} n’ont pas pu être téléchargés ({error}). Réessayez pour ne récupérer que ceux-là."
 }

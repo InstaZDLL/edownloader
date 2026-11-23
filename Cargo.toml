@@ -1,6 +1,6 @@
 [package]
 name = "edownloader"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "One field. All your downloads: direct links through aria2, media through yt-dlp, with a cookie jar for YouTube."
 authors = ["InstaZDLL"]

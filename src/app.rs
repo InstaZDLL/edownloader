@@ -188,6 +188,8 @@ pub(crate) struct Task {
     pub(crate) path: Option<PathBuf>,
     pub(crate) error: Option<String>,
     pub(crate) log: String,
+    /// Files done and found, for a job that fetches several (a Pinterest board).
+    pub(crate) items: Option<(u64, u64)>,
 }
 
 impl Task {
@@ -196,7 +198,13 @@ impl Task {
     }
 
     pub(crate) fn fraction(&self) -> f32 {
-        human::bar_fraction(self.downloaded, self.total)
+        match self.items {
+            // Several files of unknown sizes: the bar counts files.
+            Some((done, total)) if total > 0 && self.total.is_none() => {
+                (done as f32 / total as f32).clamp(0.0, 1.0)
+            }
+            _ => human::bar_fraction(self.downloaded, self.total),
+        }
     }
 
     pub(crate) fn eta(&self) -> Option<u64> {
@@ -267,6 +275,15 @@ impl Task {
                     ),
                     None => human::bytes(self.downloaded),
                 };
+                if let Some((done, total)) = self.items {
+                    let files = tn!("task.files", total, done = done);
+                    let stage = if self.downloaded == 0 && self.stage == "listing" {
+                        format!(" · {}", stage_label(&self.stage))
+                    } else {
+                        format!(" · {size}{speed}")
+                    };
+                    return format!("{source} · {files}{stage}");
+                }
                 let eta = self
                     .eta()
                     .map(|s| format!(" · {}", t!("task.left", eta = human::eta(s))))
@@ -676,6 +693,17 @@ impl RootView {
                         task.log = line;
                     }
                 }
+                Event::Title { id, title } => {
+                    if let Some(task) = self.task_mut(id) {
+                        task.title = title;
+                    }
+                }
+                Event::Items { id, done, total } => {
+                    if let Some(task) = self.task_mut(id) {
+                        // No total: a single file, whose bytes tell the progress.
+                        task.items = (total > 0).then_some((done, total));
+                    }
+                }
                 Event::Done { id, path, size } => {
                     if let Some(task) = self.task_mut(id) {
                         task.state = TaskState::Done;
@@ -916,6 +944,7 @@ impl RootView {
                 path: None,
                 error: None,
                 log: String::new(),
+                items: None,
             },
         );
         id
@@ -1122,6 +1151,7 @@ impl RootView {
             task.total = None;
             task.speed = 0;
             task.path = None;
+            task.items = None;
         }
         self.pump(cx);
         cx.notify();
@@ -1448,6 +1478,7 @@ pub(crate) fn stage_label(stage: &str) -> &str {
         "done" => t!("stage.done"),
         "checking" => t!("stage.checking"),
         "extracting" => t!("stage.extracting"),
+        "listing" => t!("stage.listing"),
         other => other,
     }
 }

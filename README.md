@@ -114,6 +114,8 @@ The AppImage updates itself like the Windows app, when it sits in a folder you c
 - **Media from the 1,800+ sites yt-dlp has extractors for**: titles, best format, video and audio merged, optional metadata and cover art embedded.
 - **Format presets**: `best`, `1080p`, `720p`, `audio` (keeps the original codec, no lossy re-encode), and whole playlists with one toggle.
 - **MP4-first output for broad compatibility**, up to 4K (AV1), or `native` to keep the best codecs as WebM. Resolutions above 1080p still come out with sound.
+- **Pinterest pins, boards and board sections**: pictures, GIFs and videos at the highest resolution Pinterest offers, a board in a folder named after it. Running a board again only fetches the new pins. Your own secret boards come with your Pinterest cookies.
+- **What yt-dlp misses on X, Instagram, TikTok and Bilibili**: the photos of an X or Instagram post at the highest resolution the site offers (with the post's videos when it mixes both), TikTok photo posts (every picture and the sound), and Bilibili videos, which yt-dlp often cannot reach (HTTP 412), with every part of a multi-part video when the playlist toggle is on. Videos alone still go to yt-dlp, with your format preset.
 - **Direct links and magnets** through aria2: multi-connection, resumable, BitTorrent included.
 - **A real queue**: a cap on simultaneous downloads, the rest start as slots free up. Pause, resume, retry, cancel, open the folder.
 - **Exact progress**: bytes, speed, ETA and connections read from the engines themselves, not guessed from a log.

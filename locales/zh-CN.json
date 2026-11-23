@@ -19,6 +19,7 @@
   "stage.done": "已完成",
   "stage.checking": "正在校验",
   "stage.extracting": "正在解压",
+  "stage.listing": "正在列出文件",
 
   "task.waiting": "{source} · 等待空闲位置",
   "task.cancelled": "{source} · 已取消",
@@ -28,6 +29,8 @@
   "task.left": "剩余 {eta}",
   "task.site_link": "{site} 链接",
   "task.torrent": "BitTorrent 下载",
+  "task.files.one": "{done}/{n} 个文件",
+  "task.files.other": "{done}/{n} 个文件",
 
   "input.url": "https://…  或  magnet:?xt=…",
   "input.domain": "域名，例如 youtube.com",
@@ -293,5 +296,17 @@
   "error.members": "会员专享视频：Cookie 集必须属于会员账号。",
   "error.scheduled": "这是尚未开始的预定直播。",
   "error.network": "无法访问该网站。请检查网络连接或重试。",
-  "error.folder": "无法创建下载文件夹：{error}"
+  "error.folder": "无法创建下载文件夹：{error}",
+  "pinterest.unsupported": "此 Pinterest 链接不是图钉、图板或图板分区。请粘贴其中之一的链接。",
+  "pinterest.not_found": "Pinterest 在此地址上没有内容：图钉或图板已被删除，或者是秘密图板。要下载你自己的秘密图板，请导入已登录 Pinterest 的浏览器的 Cookie。",
+  "pinterest.denied": "Pinterest 拒绝了请求：此图板是秘密或私密的。请导入已登录 Pinterest 的浏览器的 Cookie，然后重试。",
+  "pinterest.empty": "这里没有图钉。",
+  "gallery.not_found": "{site} 在此地址没有内容：帖子已被删除，或链接有误。",
+  "gallery.private": "{site} 不向访客显示此帖子：它是私密的、有年龄限制或已被删除。如果你的账号可以看到它，请导入已登录 {site} 的浏览器的 Cookie，然后重试。",
+  "gallery.rate_limited": "{site} 目前正在限制请求。请等待几分钟后重试：已下载的文件会保留。",
+  "gallery.changed": "{site} 的响应出乎意料；其网站可能已更改。",
+  "gallery.no_media": "此帖子没有可下载的图片或视频。",
+  "gallery.no_ffmpeg": "保存此视频需要 ffmpeg。请从横幅安装工具，然后重试。",
+  "gallery.partial.one": "{total} 个文件中有 {n} 个无法下载（{error}）。重试即可只获取这个文件。",
+  "gallery.partial.other": "{total} 个文件中有 {n} 个无法下载（{error}）。重试即可只获取这些文件。"
 }

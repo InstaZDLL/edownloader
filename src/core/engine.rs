@@ -1,12 +1,16 @@
 //! Download orchestration.
 //!
-//! Two runners, one event stream:
+//! Three runners, one event stream:
 //!
 //! * **aria2** (direct files, magnets) — a daemon is started on first use and
 //!   each job is polled through `aria2.tellStatus`, which yields exact byte
 //!   counts, speed and connections.
 //! * **yt-dlp** (media sites) — one child process per job, with a machine
 //!   readable `--progress-template` line and a final `EDLPFILE` marker.
+//! * **The sites read natively** (Pinterest, X, Instagram, TikTok, Bilibili)
+//!   — gallery.rs lists a post or a board through the site, fetches its
+//!   files itself, and hands the job back to yt-dlp when the link holds
+//!   nothing yt-dlp would miss.
 //!
 //! Everything blocking happens on plain OS threads; the UI thread only reads
 //! the event channel. Cancellation is a flag every supervisor honours, plus an
@@ -22,6 +26,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use crate::core::aria2::Aria2;
+use crate::core::gallery::{self, Site};
 use crate::core::tools::Tools;
 use crate::core::urlx::{self, LinkKind};
 
@@ -189,6 +194,18 @@ pub enum Event {
         id: u64,
         line: String,
     },
+    /// What the job turned out to be (a board's name), before it finishes.
+    Title {
+        id: u64,
+        title: String,
+    },
+    /// Files of a job that fetches several (a Pinterest board): `done` of
+    /// `total`, the ones already on disk included.
+    Items {
+        id: u64,
+        done: u64,
+        total: u64,
+    },
     Done {
         id: u64,
         path: PathBuf,
@@ -283,7 +300,12 @@ impl Engine {
         std::thread::Builder::new()
             .name(format!("job-{}", request.id))
             .spawn(move || {
-                if request.kind == LinkKind::Media {
+                let site = (request.kind == LinkKind::Media)
+                    .then(|| Site::of(&request.url))
+                    .flatten();
+                if let Some(site) = site {
+                    engine.run_site(site, request, handle);
+                } else if request.kind == LinkKind::Media {
                     engine.run_ytdlp(request, handle);
                 } else {
                     engine.run_aria(request, handle);
@@ -389,6 +411,26 @@ impl Engine {
             message: t!("status.aria2_ready", version = version),
         });
         Ok(daemon)
+    }
+
+    /// The sites the app reads itself (gallery.rs): what yt-dlp misses there
+    /// is fetched here, the rest goes back to yt-dlp.
+    fn run_site(self: Arc<Self>, site: Site, request: StartRequest, handle: Arc<Handle>) {
+        let tools = self.tools();
+        let job = gallery::Job {
+            id: request.id,
+            url: &request.url,
+            dest_dir: &request.dest_dir,
+            cookie_file: request.cookie_file.as_deref(),
+            ffmpeg: tools.ffmpeg.as_deref(),
+            yt_dlp: tools.yt_dlp.as_deref(),
+            media: &request.media,
+            cancel: handle.cancel.clone(),
+        };
+        let outcome = gallery::run(site, &job, &|event| self.emit(event));
+        if outcome == gallery::Outcome::Delegate && !handle.cancel.load(Ordering::SeqCst) {
+            self.run_ytdlp(request, handle);
+        }
     }
 
     fn run_aria(self: Arc<Self>, request: StartRequest, handle: Arc<Handle>) {

@@ -53,12 +53,12 @@ const MEDIA_SITES: &[(&str, &str)] = &[
     ("reddit.com", "Reddit"),
     ("redd.it", "Reddit"),
     ("bilibili.com", "Bilibili"),
+    ("b23.tv", "Bilibili"),
     ("rumble.com", "Rumble"),
     ("odysee.com", "Odysee"),
     ("streamable.com", "Streamable"),
     ("vk.com", "VK"),
     ("ok.ru", "Odnoklassniki"),
-    ("pinterest.com", "Pinterest"),
     ("linkedin.com", "LinkedIn"),
     ("threads.net", "Threads"),
     ("snapchat.com", "Snapchat"),
@@ -128,6 +128,10 @@ pub fn host_of(url: &str) -> String {
 }
 
 pub fn site_label(host: &str) -> Option<&'static str> {
+    // Every country site and pin.it: pinterest.rs handles them all.
+    if crate::core::pinterest::is_host(host) {
+        return Some("Pinterest");
+    }
     MEDIA_SITES
         .iter()
         .find(|(domain, _)| host == *domain || host.ends_with(&format!(".{domain}")))
@@ -152,7 +156,7 @@ pub fn file_hint(url: &str) -> Option<String> {
     Some(sanitize_filename(&decoded))
 }
 
-fn percent_decode(text: &str) -> String {
+pub(crate) fn percent_decode(text: &str) -> String {
     let bytes = text.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;

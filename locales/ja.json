@@ -19,6 +19,7 @@
   "stage.done": "完了",
   "stage.checking": "確認中",
   "stage.extracting": "展開中",
+  "stage.listing": "ファイルを一覧中",
 
   "task.waiting": "{source} · 空きスロット待ち",
   "task.cancelled": "{source} · キャンセル済み",
@@ -28,6 +29,8 @@
   "task.left": "残り{eta}",
   "task.site_link": "{site}のリンク",
   "task.torrent": "BitTorrentダウンロード",
+  "task.files.one": "{done} / {n} ファイル",
+  "task.files.other": "{done} / {n} ファイル",
 
   "input.url": "https://…  または  magnet:?xt=…",
   "input.domain": "ドメイン（例: youtube.com）",
@@ -293,5 +296,17 @@
   "error.members": "メンバー限定動画です。Cookieセットはメンバーのアカウントのものである必要があります。",
   "error.scheduled": "まだ開始されていない予定配信です。",
   "error.network": "サイトに接続できませんでした。接続を確認するか、再試行してください。",
-  "error.folder": "ダウンロードフォルダーを作成できません: {error}"
+  "error.folder": "ダウンロードフォルダーを作成できません: {error}",
+  "pinterest.unsupported": "この Pinterest のリンクは、ピン、ボード、ボードのセクションのいずれでもありません。そのいずれかのリンクを貼り付けてください。",
+  "pinterest.not_found": "このアドレスには Pinterest 上に何もありません。ピンまたはボードが削除されたか、シークレットです。自分のシークレットボードには、Pinterest にログインしているブラウザーの Cookie をインポートしてください。",
+  "pinterest.denied": "Pinterest に拒否されました。このボードはシークレットまたは非公開です。Pinterest にログインしているブラウザーの Cookie をインポートしてから、再試行してください。",
+  "pinterest.empty": "ここにはピンがありません。",
+  "gallery.not_found": "{site} のこのアドレスには何もありません。投稿が削除されたか、リンクが間違っています。",
+  "gallery.private": "{site} はこの投稿を訪問者に表示しません。非公開、年齢制限付き、または削除済みです。お使いのアカウントで表示できる場合は、{site} にログインしているブラウザーの Cookie をインポートしてから、再試行してください。",
+  "gallery.rate_limited": "{site} が現在リクエストを制限しています。数分待ってから再試行してください。ダウンロード済みのファイルは保持されます。",
+  "gallery.changed": "{site} から予期しない応答がありました。サイトが変更された可能性があります。",
+  "gallery.no_media": "この投稿にはダウンロードできる画像も動画もありません。",
+  "gallery.no_ffmpeg": "この動画を保存するには ffmpeg が必要です。バナーからツールをインストールしてから、再試行してください。",
+  "gallery.partial.one": "{total} 件中 {n} 件のファイルをダウンロードできませんでした（{error}）。再試行すると、そのファイルだけを取得します。",
+  "gallery.partial.other": "{total} 件中 {n} 件のファイルをダウンロードできませんでした（{error}）。再試行すると、それらのファイルだけを取得します。"
 }

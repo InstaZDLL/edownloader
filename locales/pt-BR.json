@@ -19,6 +19,7 @@
   "stage.done": "concluído",
   "stage.checking": "verificando",
   "stage.extracting": "extraindo",
+  "stage.listing": "listando os arquivos",
 
   "task.waiting": "{source} · aguardando uma vaga",
   "task.cancelled": "{source} · cancelado",
@@ -28,6 +29,8 @@
   "task.left": "faltam {eta}",
   "task.site_link": "link de {site}",
   "task.torrent": "Download BitTorrent",
+  "task.files.one": "{done} / {n} arquivo",
+  "task.files.other": "{done} / {n} arquivos",
 
   "input.url": "https://…  ou  magnet:?xt=…",
   "input.domain": "domínio, ex.: youtube.com",
@@ -293,5 +296,17 @@
   "error.members": "Vídeo exclusivo para membros: o conjunto de cookies precisa ser de uma conta de membro.",
   "error.scheduled": "Esta é uma transmissão agendada que ainda não começou.",
   "error.network": "Não foi possível acessar o site. Verifique a conexão ou tente de novo.",
-  "error.folder": "Não foi possível criar a pasta de download: {error}"
+  "error.folder": "Não foi possível criar a pasta de download: {error}",
+  "pinterest.unsupported": "Este link do Pinterest não é um pin, uma pasta nem uma seção de pasta. Cole o link de um deles.",
+  "pinterest.not_found": "O Pinterest não tem nada neste endereço: o pin ou a pasta foi removido ou é secreto. Para suas próprias pastas secretas, importe os cookies de um navegador conectado ao Pinterest.",
+  "pinterest.denied": "O Pinterest recusou: esta pasta é secreta ou privada. Importe os cookies de um navegador conectado ao Pinterest e tente de novo.",
+  "pinterest.empty": "Não há nenhum pin aqui.",
+  "gallery.not_found": "{site} não tem nada neste endereço: a publicação foi excluída ou o link está errado.",
+  "gallery.private": "{site} não mostra esta publicação a visitantes: ela é privada, tem restrição de idade ou foi excluída. Se a sua conta pode vê-la, importe os cookies de um navegador conectado ao {site} e tente de novo.",
+  "gallery.rate_limited": "{site} está limitando as solicitações no momento. Aguarde alguns minutos e tente de novo: os arquivos já baixados são mantidos.",
+  "gallery.changed": "{site} respondeu de forma inesperada; o site pode ter mudado.",
+  "gallery.no_media": "Esta publicação não tem imagem nem vídeo para baixar.",
+  "gallery.no_ffmpeg": "O ffmpeg é necessário para salvar este vídeo. Instale as ferramentas pelo banner e tente de novo.",
+  "gallery.partial.one": "{n} de {total} arquivos não pôde ser baixado ({error}). Tente de novo para buscar só esse.",
+  "gallery.partial.other": "{n} de {total} arquivos não puderam ser baixados ({error}). Tente de novo para buscar só esses."
 }

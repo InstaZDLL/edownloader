@@ -19,6 +19,7 @@
   "stage.done": "done",
   "stage.checking": "checking",
   "stage.extracting": "extracting",
+  "stage.listing": "listing the files",
 
   "task.waiting": "{source} · waiting for a slot",
   "task.cancelled": "{source} · cancelled",
@@ -28,6 +29,8 @@
   "task.left": "{eta} left",
   "task.site_link": "{site} link",
   "task.torrent": "BitTorrent download",
+  "task.files.one": "{done} / {n} file",
+  "task.files.other": "{done} / {n} files",
 
   "input.url": "https://…  or  magnet:?xt=…",
   "input.domain": "domain, e.g. youtube.com",
@@ -293,5 +296,17 @@
   "error.members": "Members-only video: the cookie jar must belong to a member account.",
   "error.scheduled": "This is a scheduled stream that has not started yet.",
   "error.network": "The site could not be reached. Check the connection or retry.",
-  "error.folder": "Cannot create the download folder: {error}"
+  "error.folder": "Cannot create the download folder: {error}",
+  "pinterest.unsupported": "This Pinterest link is not a pin, a board or a board section. Paste the link of one of those.",
+  "pinterest.not_found": "Pinterest has nothing at this address: the pin or board was removed, or it is secret. For your own secret boards, import cookies from a browser signed in to Pinterest.",
+  "pinterest.denied": "Pinterest refused: this board is secret or private. Import cookies from a browser signed in to Pinterest, then retry.",
+  "pinterest.empty": "There are no pins here.",
+  "gallery.not_found": "{site} has nothing at this address: the post was deleted, or the link is wrong.",
+  "gallery.private": "{site} does not show this post to visitors: it is private, age-restricted or deleted. If your account can see it, import cookies from a browser signed in to {site}, then retry.",
+  "gallery.rate_limited": "{site} is limiting requests for now. Wait a few minutes, then retry: the files already downloaded are kept.",
+  "gallery.changed": "{site} answered in an unexpected way; its site may have changed.",
+  "gallery.no_media": "This post has no picture or video to download.",
+  "gallery.no_ffmpeg": "ffmpeg is needed to save this video. Install the tools from the banner, then retry.",
+  "gallery.partial.one": "{n} of {total} files could not be downloaded ({error}). Retry to fetch only that one.",
+  "gallery.partial.other": "{n} of {total} files could not be downloaded ({error}). Retry to fetch only those."
 }

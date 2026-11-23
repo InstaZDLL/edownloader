@@ -19,6 +19,7 @@
   "stage.done": "fertig",
   "stage.checking": "prüft",
   "stage.extracting": "entpackt",
+  "stage.listing": "listet die Dateien auf",
 
   "task.waiting": "{source} · wartet auf freien Platz",
   "task.cancelled": "{source} · abgebrochen",
@@ -28,6 +29,8 @@
   "task.left": "noch {eta}",
   "task.site_link": "{site}-Link",
   "task.torrent": "BitTorrent-Download",
+  "task.files.one": "{done} / {n} Datei",
+  "task.files.other": "{done} / {n} Dateien",
 
   "input.url": "https://…  oder  magnet:?xt=…",
   "input.domain": "Domain, z. B. youtube.com",
@@ -293,5 +296,17 @@
   "error.members": "Video nur für Mitglieder: Das Cookie-Set muss zu einem Mitgliedskonto gehören.",
   "error.scheduled": "Dies ist ein geplanter Stream, der noch nicht begonnen hat.",
   "error.network": "Die Seite ist nicht erreichbar. Prüfen Sie die Verbindung oder versuchen Sie es erneut.",
-  "error.folder": "Download-Ordner kann nicht angelegt werden: {error}"
+  "error.folder": "Download-Ordner kann nicht angelegt werden: {error}",
+  "pinterest.unsupported": "Dieser Pinterest-Link ist weder ein Pin noch eine Pinnwand noch ein Pinnwand-Abschnitt. Fügen Sie den Link eines davon ein.",
+  "pinterest.not_found": "Unter dieser Adresse gibt es bei Pinterest nichts: Der Pin oder die Pinnwand wurde entfernt oder ist geheim. Für Ihre eigenen geheimen Pinnwände importieren Sie die Cookies eines Browsers, der bei Pinterest angemeldet ist.",
+  "pinterest.denied": "Pinterest hat abgelehnt: Diese Pinnwand ist geheim oder privat. Importieren Sie die Cookies eines bei Pinterest angemeldeten Browsers und versuchen Sie es dann erneut.",
+  "pinterest.empty": "Hier gibt es keine Pins.",
+  "gallery.not_found": "{site} hat unter dieser Adresse nichts: Der Beitrag wurde gelöscht, oder der Link ist falsch.",
+  "gallery.private": "{site} zeigt diesen Beitrag Besuchern nicht: Er ist privat, altersbeschränkt oder gelöscht. Wenn Ihr Konto ihn sehen kann, importieren Sie die Cookies eines bei {site} angemeldeten Browsers und versuchen Sie es dann erneut.",
+  "gallery.rate_limited": "{site} begrenzt gerade die Anfragen. Warten Sie einige Minuten und versuchen Sie es dann erneut: Bereits heruntergeladene Dateien bleiben erhalten.",
+  "gallery.changed": "{site} hat unerwartet geantwortet; die Website hat sich vielleicht geändert.",
+  "gallery.no_media": "Dieser Beitrag enthält weder ein Bild noch ein Video zum Herunterladen.",
+  "gallery.no_ffmpeg": "Zum Speichern dieses Videos wird ffmpeg benötigt. Installieren Sie die Tools über das Banner und versuchen Sie es dann erneut.",
+  "gallery.partial.one": "{n} von {total} Dateien konnte nicht heruntergeladen werden ({error}). Versuchen Sie es erneut, um nur diese zu holen.",
+  "gallery.partial.other": "{n} von {total} Dateien konnten nicht heruntergeladen werden ({error}). Versuchen Sie es erneut, um nur diese zu holen."
 }

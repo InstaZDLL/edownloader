@@ -19,6 +19,7 @@
   "stage.done": "completato",
   "stage.checking": "verifica",
   "stage.extracting": "estrazione",
+  "stage.listing": "elenco dei file",
 
   "task.waiting": "{source} · in attesa di uno slot",
   "task.cancelled": "{source} · annullato",
@@ -28,6 +29,8 @@
   "task.left": "{eta} rimanenti",
   "task.site_link": "link {site}",
   "task.torrent": "Download BitTorrent",
+  "task.files.one": "{done} / {n} file",
+  "task.files.other": "{done} / {n} file",
 
   "input.url": "https://…  oppure  magnet:?xt=…",
   "input.domain": "dominio, es. youtube.com",
@@ -293,5 +296,17 @@
   "error.members": "Video riservato ai membri: la raccolta di cookie deve appartenere a un account membro.",
   "error.scheduled": "Questa è una diretta programmata non ancora iniziata.",
   "error.network": "Impossibile raggiungere il sito. Controlla la connessione o riprova.",
-  "error.folder": "Impossibile creare la cartella di download: {error}"
+  "error.folder": "Impossibile creare la cartella di download: {error}",
+  "pinterest.unsupported": "Questo link di Pinterest non è un pin, una bacheca o una sezione di bacheca. Incolla il link di uno di questi.",
+  "pinterest.not_found": "Pinterest non ha nulla a questo indirizzo: il pin o la bacheca è stato rimosso oppure è segreto. Per le tue bacheche segrete, importa i cookie di un browser connesso a Pinterest.",
+  "pinterest.denied": "Pinterest ha rifiutato: questa bacheca è segreta o privata. Importa i cookie di un browser connesso a Pinterest, poi riprova.",
+  "pinterest.empty": "Qui non ci sono pin.",
+  "gallery.not_found": "{site} non ha nulla a questo indirizzo: il post è stato eliminato o il link è errato.",
+  "gallery.private": "{site} non mostra questo post ai visitatori: è privato, vietato ai minori o eliminato. Se il tuo account può vederlo, importa i cookie di un browser connesso a {site}, poi riprova.",
+  "gallery.rate_limited": "{site} sta limitando le richieste. Attendi qualche minuto, poi riprova: i file già scaricati vengono mantenuti.",
+  "gallery.changed": "{site} ha risposto in modo inatteso; il sito potrebbe essere cambiato.",
+  "gallery.no_media": "Questo post non ha immagini né video da scaricare.",
+  "gallery.no_ffmpeg": "Serve ffmpeg per salvare questo video. Installa gli strumenti dal banner, poi riprova.",
+  "gallery.partial.one": "{n} file su {total} non è stato scaricato ({error}). Riprova per recuperare solo quello.",
+  "gallery.partial.other": "{n} file su {total} non sono stati scaricati ({error}). Riprova per recuperare solo quelli."
 }

@@ -26,6 +26,12 @@ src/
   core/
     aria2.rs         daemon + JSON-RPC over a loopback socket (no HTTP crate)
     engine.rs        job orchestration, yt-dlp supervision, progress parsing
+    gallery.rs       the sites read natively: listing → files fetched 3 at a time, or back to yt-dlp
+    pinterest.rs     Pinterest pins, boards and sections through the website's API
+    twitter.rs       X posts through the syndication API (photos; videos alongside)
+    instagram.rs     Instagram posts read by yt-dlp -J, photos fetched here
+    tiktok.rs        TikTok photo posts from the page's rehydration data
+    bilibili.rs      Bilibili videos and parts: view + playurl API, DASH muxed by ffmpeg
     cookies.rs       formats, store, domain matching, sign-in analysis
     settings.rs      persisted preferences
     tools.rs         binary discovery
@@ -100,6 +106,61 @@ no label for, the job is handed to aria2 as a plain file. Known sites
   the only MP4-compatible codec YouTube offers in 4K), `native` keeps VP9/Opus
   in WebM. Every media preset merges `bv*` with `ba`, so resolutions above
   1080p, served as video-only DASH, still come out with sound.
+- **Sites read natively** (`gallery.rs`): Pinterest, X, Instagram, TikTok
+  and Bilibili links of the shapes their module understands
+  (`gallery::Site::of`) go to a runner of their own; every other link on
+  these sites still goes to yt-dlp. A site module turns the link into a
+  `Listing` (a title, an optional folder, the files), and `gallery::run`
+  fetches the files three at a time: plain files streamed through `.part`,
+  HLS through ffmpeg, separate video and audio (DASH) fetched then muxed by
+  ffmpeg with `-c copy`. Each name ends with `[key]`, an identifier the
+  site gives the file; a file already on disk with the same key and
+  extension is skipped, so a second run or a retry only fetches what is
+  missing. A module can answer `Listed::Delegate` instead: the link holds
+  nothing yt-dlp would miss, and `Engine::run_site` hands the job to
+  yt-dlp, presets and all. The row counts files when there are several
+  (`Event::Items`), and shows the post's or board's name (`Event::Title`).
+  - **X** (`twitter.rs`): yt-dlp stops at "No video could be found" on a
+    photo post. A post (`/status/<id>`) is read from the syndication API
+    X's embeds use (`cdn.syndication.twimg.com/tweet-result`), which needs
+    no account: photos as `?name=orig`, videos and GIFs of a mixed post as
+    their highest-bitrate MP4. Video-only posts, the Audio preset, and
+    protected posts when the jar holds X cookies go to yt-dlp.
+  - **Instagram** (`instagram.rs`): Instagram answers anonymous visitors
+    only over a browser's TLS handshake, which yt-dlp imitates (curl_cffi)
+    and ureq cannot. So `yt-dlp -J --ignore-no-formats-error` reads the
+    post (`/p/`, `/tv/`), with the jar's cookies; the photos it lists as
+    thumbnails (largest last) and the whole (non-`dash-`) MP4 of the videos
+    of a mixed carousel are fetched here. Reels and video-only posts go to
+    yt-dlp.
+  - **TikTok** (`tiktok.rs`): yt-dlp refuses `/photo/` links. The post's
+    data comes from `__UNIVERSAL_DATA_FOR_REHYDRATION__` in the page at
+    `/@i/video/<id>` (the `/photo/` page leaves it to its scripts): a photo
+    post gives its pictures, numbered in order, and its sound as MP3 (the
+    sound alone with the Audio preset). Videos go to yt-dlp. Share links
+    (`vm.`, `vt.`, `/t/`) are followed first.
+  - **Bilibili** (`bilibili.rs`): its pages answer yt-dlp with HTTP 412,
+    its API does not, given a `buvid3` cookie (from the jar, else from
+    `x/frontend/finger/spi`). `x/web-interface/view` gives the parts,
+    `x/player/playurl` (`fnval=4048`) each part's DASH streams: the tallest
+    video within the preset's cap, H.264 first in MP4 mode and AV1/HEVC
+    first in native mode, with the best audio; the audio stream alone for
+    the Audio preset. `?p=N` picks a part; otherwise the playlist toggle
+    decides between the first part and all of them, in a folder. Without
+    an account Bilibili serves up to 480p.
+- **Pinterest** (`pinterest.rs`): yt-dlp only extracts Pinterest videos,
+  and fails on image pins and on any board holding one.
+  Every Pinterest host (`pinterest.fr`, `fr.pinterest.com`…) and `pin.it`
+  are recognised. The runner calls the JSON API the website uses
+  (`/resource/<Name>Resource/get/`, with the `x-pinterest-pws-handler`
+  header it requires), anonymously, or with the pinterest.com cookies of the
+  active jar for secret boards. A board is listed page by page through
+  bookmarks, 25 pins a page, a short pause between pages; rate limits wait
+  for `Retry-After`. Each pin gives its original picture, its MP4 (`V_720P`
+  is the original upload) or its HLS stream through ffmpeg, every page of a
+  story pin and every slot of a carousel. A board lands in a folder named
+  after it; the key is the start of the CDN file name, which the same
+  picture keeps on every board.
 
 ## Cookies
 

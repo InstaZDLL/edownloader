@@ -19,6 +19,7 @@
   "stage.done": "listo",
   "stage.checking": "verificando",
   "stage.extracting": "extrayendo",
+  "stage.listing": "listando los archivos",
 
   "task.waiting": "{source} · esperando un hueco",
   "task.cancelled": "{source} · cancelado",
@@ -28,6 +29,8 @@
   "task.left": "quedan {eta}",
   "task.site_link": "enlace de {site}",
   "task.torrent": "Descarga BitTorrent",
+  "task.files.one": "{done} / {n} archivo",
+  "task.files.other": "{done} / {n} archivos",
 
   "input.url": "https://…  o  magnet:?xt=…",
   "input.domain": "dominio, p. ej. youtube.com",
@@ -293,5 +296,17 @@
   "error.members": "Video solo para miembros: el tarro de cookies debe pertenecer a una cuenta de miembro.",
   "error.scheduled": "Es una emisión programada que aún no ha empezado.",
   "error.network": "No se pudo acceder al sitio. Comprueba la conexión o vuelve a intentarlo.",
-  "error.folder": "No se puede crear la carpeta de descarga: {error}"
+  "error.folder": "No se puede crear la carpeta de descarga: {error}",
+  "pinterest.unsupported": "Este enlace de Pinterest no es un pin, un tablero ni una sección de tablero. Pega el enlace de uno de ellos.",
+  "pinterest.not_found": "Pinterest no tiene nada en esta dirección: el pin o el tablero se eliminó o es secreto. Para tus propios tableros secretos, importa las cookies de un navegador con sesión iniciada en Pinterest.",
+  "pinterest.denied": "Pinterest lo rechazó: este tablero es secreto o privado. Importa las cookies de un navegador con sesión iniciada en Pinterest y vuelve a intentarlo.",
+  "pinterest.empty": "Aquí no hay ningún pin.",
+  "gallery.not_found": "{site} no tiene nada en esta dirección: la publicación se eliminó o el enlace es incorrecto.",
+  "gallery.private": "{site} no muestra esta publicación a los visitantes: es privada, tiene restricción de edad o se eliminó. Si tu cuenta puede verla, importa las cookies de un navegador con sesión iniciada en {site} y vuelve a intentarlo.",
+  "gallery.rate_limited": "{site} está limitando las solicitudes por ahora. Espera unos minutos y vuelve a intentarlo: los archivos ya descargados se conservan.",
+  "gallery.changed": "{site} respondió de forma inesperada; puede que su sitio haya cambiado.",
+  "gallery.no_media": "Esta publicación no tiene ninguna imagen ni video para descargar.",
+  "gallery.no_ffmpeg": "Se necesita ffmpeg para guardar este video. Instala las herramientas desde el aviso y vuelve a intentarlo.",
+  "gallery.partial.one": "{n} de {total} archivos no se pudo descargar ({error}). Vuelve a intentarlo para obtener solo ese.",
+  "gallery.partial.other": "{n} de {total} archivos no se pudieron descargar ({error}). Vuelve a intentarlo para obtener solo esos."
 }

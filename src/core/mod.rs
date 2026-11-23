@@ -1,11 +1,17 @@
 pub mod aria2;
+pub mod bilibili;
 pub mod cookies;
 pub mod engine;
+pub mod gallery;
 pub mod human;
+pub mod instagram;
 pub mod net;
 pub mod paths;
+pub mod pinterest;
 pub mod settings;
 pub mod setup;
+pub mod tiktok;
 pub mod tools;
+pub mod twitter;
 pub mod update;
 pub mod urlx;
