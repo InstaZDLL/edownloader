@@ -53,9 +53,9 @@ pub(crate) enum Tab {
 impl Tab {
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Tab::Downloads => "Downloads",
-            Tab::Cookies => "Cookies",
-            Tab::Settings => "Settings",
+            Tab::Downloads => t!("tab.downloads"),
+            Tab::Cookies => t!("tab.cookies"),
+            Tab::Settings => t!("tab.settings"),
         }
     }
 
@@ -140,12 +140,12 @@ pub(crate) enum TaskState {
 impl TaskState {
     pub(crate) fn label(self) -> &'static str {
         match self {
-            TaskState::Queued => "queued",
-            TaskState::Running => "running",
-            TaskState::Paused => "paused",
-            TaskState::Done => "done",
-            TaskState::Failed => "failed",
-            TaskState::Cancelled => "cancelled",
+            TaskState::Queued => t!("state.queued"),
+            TaskState::Running => t!("state.running"),
+            TaskState::Paused => t!("state.paused"),
+            TaskState::Done => t!("state.done"),
+            TaskState::Failed => t!("state.failed"),
+            TaskState::Cancelled => t!("state.cancelled"),
         }
     }
 
@@ -211,7 +211,7 @@ impl Task {
     pub(crate) fn subtitle(&self) -> String {
         let source = self.site.unwrap_or(self.host.as_str());
         match self.state {
-            TaskState::Queued => format!("{source} · waiting for a slot"),
+            TaskState::Queued => t!("task.waiting", source = source),
             TaskState::Done => {
                 let size = self
                     .total
@@ -236,14 +236,21 @@ impl Task {
             }
             TaskState::Failed => format!(
                 "{source} · {}",
-                self.error.clone().unwrap_or_else(|| "failed".into())
+                self.error
+                    .clone()
+                    .unwrap_or_else(|| t!("state.failed").into())
             ),
-            TaskState::Cancelled => format!("{source} · cancelled"),
+            TaskState::Cancelled => t!("task.cancelled", source = source),
             TaskState::Paused => {
                 let done = human::bytes(self.downloaded);
                 match self.total {
-                    Some(total) => format!("{source} · {done} of {} · paused", human::bytes(total)),
-                    None => format!("{source} · {done} · paused"),
+                    Some(total) => t!(
+                        "task.paused_of",
+                        source = source,
+                        done = done,
+                        total = human::bytes(total)
+                    ),
+                    None => t!("task.paused", source = source, done = done),
                 }
             }
             TaskState::Running => {
@@ -253,19 +260,19 @@ impl Task {
                     String::new()
                 };
                 let size = match self.total {
-                    Some(total) => format!(
-                        "{} of {}",
-                        human::bytes(self.downloaded),
-                        human::bytes(total)
+                    Some(total) => t!(
+                        "task.of",
+                        done = human::bytes(self.downloaded),
+                        total = human::bytes(total)
                     ),
                     None => human::bytes(self.downloaded),
                 };
                 let eta = self
                     .eta()
-                    .map(|s| format!(" · {} left", human::eta(s)))
+                    .map(|s| format!(" · {}", t!("task.left", eta = human::eta(s))))
                     .unwrap_or_default();
                 let stage = if self.total.is_none() && self.downloaded == 0 {
-                    format!(" · {}", self.stage)
+                    format!(" · {}", stage_label(&self.stage))
                 } else {
                     String::new()
                 };
@@ -361,6 +368,7 @@ impl RootView {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let mut settings = Settings::load();
         settings.sanitize();
+        crate::i18n::set(crate::i18n::resolve(&settings.language));
         // Resolve `system` once against the desktop appearance before the first
         // paint, so choosing it later never depends on which window is open.
         let desktop_is_dark = matches!(
@@ -391,10 +399,10 @@ impl RootView {
         );
 
         let dir_value = settings.download_dir.clone();
-        let url_input = cx.new(|cx| TextInput::new("https://…  or  magnet:?xt=…", cx));
-        let domain_input = cx.new(|cx| TextInput::new("domain, e.g. youtube.com", cx));
+        let url_input = cx.new(|cx| TextInput::new(t!("input.url"), cx));
+        let domain_input = cx.new(|cx| TextInput::new(t!("input.domain"), cx));
         let dir_input = cx.new(|cx| {
-            let mut input = TextInput::new("download folder", cx);
+            let mut input = TextInput::new(t!("input.folder"), cx);
             input.set_content(&dir_value, cx);
             input
         });
@@ -541,7 +549,7 @@ impl RootView {
                 cx.quit();
             }
             Err(error) => {
-                self.notice = Some(Notice::err(format!("Cannot start the installer: {error}")));
+                self.notice = Some(Notice::err(t!("notice.installer_failed", error = error)));
                 cx.notify();
             }
         }
@@ -689,7 +697,7 @@ impl RootView {
                 Event::EngineStatus { ok, message } => {
                     self.engine_status = Some(message);
                     if !ok {
-                        self.notice = Some(Notice::err("The aria2 engine stopped responding."));
+                        self.notice = Some(Notice::err(t!("notice.aria2_stopped")));
                     }
                 }
             }
@@ -707,7 +715,7 @@ impl RootView {
                         }
                         Err(error) => {
                             self.notice =
-                                Some(Notice::err(format!("Cannot read that file: {error}")));
+                                Some(Notice::err(t!("notice.file_unreadable", error = error)));
                         }
                     }
                 }
@@ -763,7 +771,7 @@ impl RootView {
                 self.engine.set_tools(self.tools.clone());
                 self.setup.missing = setup::missing(&self.tools);
                 self.notice = Some(if failed == 0 {
-                    Notice::ok(format!("Installed {names}. Ready to download."))
+                    Notice::ok(t!("notice.installed", names = names))
                 } else {
                     Notice::err(errors.join(" · "))
                 });
@@ -775,29 +783,29 @@ impl RootView {
         self.update = match result {
             Ok(Some(update::Found::Ready(ready))) => {
                 if manual {
-                    self.notice = Some(Notice::ok(format!(
-                        "Version {} is ready: restart to install it.",
-                        ready.version
+                    self.notice = Some(Notice::ok(t!(
+                        "notice.update_ready",
+                        version = ready.version
                     )));
                 }
                 UpdateState::Ready(ready)
             }
             Ok(Some(update::Found::Available(version))) => {
                 if manual {
-                    self.notice = Some(Notice::info(format!("Version {version} is out.")));
+                    self.notice = Some(Notice::info(t!("notice.update_out", version = version)));
                 }
                 UpdateState::Available(version)
             }
             Ok(None) => {
                 if manual {
-                    self.notice = Some(Notice::ok(format!("edownloader {VERSION} is up to date.")));
+                    self.notice = Some(Notice::ok(t!("notice.up_to_date", version = VERSION)));
                 }
                 UpdateState::UpToDate
             }
             Err(error) => {
                 // At launch an offline machine is no news; asked by hand it is.
                 if manual {
-                    self.notice = Some(Notice::err(format!("Update check failed: {error}")));
+                    self.notice = Some(Notice::err(t!("notice.update_failed", error = error)));
                 }
                 UpdateState::Failed(error)
             }
@@ -877,9 +885,9 @@ impl RootView {
         let title = match link.kind {
             LinkKind::Media => link
                 .site
-                .map(|site| format!("{site} link"))
+                .map(|site| t!("task.site_link", site = site))
                 .unwrap_or_else(|| link.host.clone()),
-            LinkKind::Torrent => "BitTorrent download".to_string(),
+            LinkKind::Torrent => t!("task.torrent").to_string(),
             LinkKind::Direct => {
                 urlx::file_hint(&link.url).unwrap_or_else(|| human::short_url(&link.url, 70))
             }
@@ -945,7 +953,7 @@ impl RootView {
                 }
                 let count = jar.cookies.len();
                 let domain = if jar.domain.is_empty() {
-                    "unknown domain".to_string()
+                    t!("notice.unknown_domain").to_string()
                 } else {
                     jar.domain.clone()
                 };
@@ -955,15 +963,17 @@ impl RootView {
                 self.store.set_active(Some(&id));
                 self.selected_jar = Some(id);
                 self.persist_cookies();
-                let suffix = match auth.state {
-                    cookies::AuthState::SignedIn => " · YouTube sign-in detected",
-                    cookies::AuthState::Partial => " · YouTube sign-in incomplete",
-                    _ => "",
-                };
-                self.notice = Some(Notice::ok(format!(
-                    "Imported {count} cookie{} for {domain}{suffix}",
-                    if count == 1 { "" } else { "s" }
-                )));
+                let mut message = tn!("notice.imported", count, domain = domain);
+                match auth.state {
+                    cookies::AuthState::SignedIn => {
+                        message = format!("{message} · {}", t!("notice.import_signed_in"))
+                    }
+                    cookies::AuthState::Partial => {
+                        message = format!("{message} · {}", t!("notice.import_partial"))
+                    }
+                    _ => {}
+                }
+                self.notice = Some(Notice::ok(message));
                 true
             }
             Err(message) => {
@@ -1055,7 +1065,7 @@ impl RootView {
                 .trim();
             self.add_link(cleaned, cx);
         } else {
-            self.notice = Some(Notice::warn("The clipboard is empty."));
+            self.notice = Some(Notice::warn(t!("notice.clipboard_empty")));
             cx.notify();
         }
         let handle = self.url_input.read(cx).focus_handle(cx);
@@ -1138,7 +1148,7 @@ impl RootView {
     pub(crate) fn copy_url(&mut self, id: u64, cx: &mut Context<Self>) {
         if let Some(url) = self.task_mut(id).map(|t| t.url.clone()) {
             cx.write_to_clipboard(ClipboardItem::new_string(url));
-            self.notice = Some(Notice::info("Link copied."));
+            self.notice = Some(Notice::info(t!("notice.link_copied")));
         }
         cx.notify();
     }
@@ -1147,7 +1157,7 @@ impl RootView {
 
     pub(crate) fn paste_cookies(&mut self, cx: &mut Context<Self>) {
         let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
-            self.notice = Some(Notice::warn("The clipboard is empty."));
+            self.notice = Some(Notice::warn(t!("notice.clipboard_empty")));
             cx.notify();
             return;
         };
@@ -1157,22 +1167,23 @@ impl RootView {
 
     pub(crate) fn pick_cookie_file(&mut self, cx: &mut Context<Self>) {
         let tx = self.side_tx.clone();
-        self.busy = Some("Waiting for the file picker…".into());
+        self.busy = Some(t!("notice.file_picker").into());
+        let title = t!("dialog.import_title");
+        let filter = format!(
+            "{} (*.txt;*.json)|*.txt;*.json|{} (*.*)|*.*",
+            t!("dialog.cookie_files"),
+            t!("dialog.all_files")
+        );
         cx.notify();
         std::thread::spawn(move || {
-            let picked = paths::pick_open_file(
-                "Import cookies",
-                "Cookie files (*.txt;*.json)|*.txt;*.json|All files (*.*)|*.*",
-            );
+            let picked = paths::pick_open_file(title, &filter);
             let _ = tx.send(Side::PickedFile(picked));
         });
     }
 
     pub(crate) fn snapshot_browser(&mut self, cx: &mut Context<Self>) {
         let Some(ytdlp) = self.tools.yt_dlp.clone() else {
-            self.notice = Some(Notice::err(
-                "yt-dlp is required to read cookies out of a browser.",
-            ));
+            self.notice = Some(Notice::err(t!("notice.ytdlp_for_browser")));
             cx.notify();
             return;
         };
@@ -1180,7 +1191,7 @@ impl RootView {
         let out = paths::app_data_dir().join("browser-cookies.txt");
         let _ = std::fs::remove_file(&out);
         let tx = self.side_tx.clone();
-        self.busy = Some(format!("Reading cookies from {browser}…"));
+        self.busy = Some(t!("notice.reading_browser", browser = browser));
         self.notice = None;
         cx.notify();
         std::thread::spawn(move || {
@@ -1194,7 +1205,7 @@ impl RootView {
         self.selected_jar = Some(id.to_string());
         self.persist_cookies();
         if let Some(jar) = self.store.active_jar() {
-            self.notice = Some(Notice::ok(format!("Downloads now use “{}”.", jar.name)));
+            self.notice = Some(Notice::ok(t!("notice.jar_active", name = jar.name)));
         }
         cx.notify();
     }
@@ -1205,7 +1216,7 @@ impl RootView {
             self.selected_jar = self.store.active.clone();
         }
         self.persist_cookies();
-        self.notice = Some(Notice::info("Cookie jar removed."));
+        self.notice = Some(Notice::info(t!("notice.jar_removed")));
         cx.notify();
     }
 
@@ -1215,18 +1226,18 @@ impl RootView {
         };
         let dir = self.settings.dir();
         if paths::ensure_dir(&dir).is_err() {
-            self.notice = Some(Notice::err("Cannot create the download folder."));
+            self.notice = Some(Notice::err(t!("notice.folder_failed")));
             cx.notify();
             return;
         }
         let path = dir.join(export_file_name(&jar.domain));
         match std::fs::write(&path, jar.netscape()) {
             Ok(()) => {
-                self.notice = Some(Notice::ok(format!("Exported to {}", path.display())));
+                self.notice = Some(Notice::ok(t!("notice.exported", path = path.display())));
                 paths::reveal(&dir);
             }
             Err(error) => {
-                self.notice = Some(Notice::err(format!("Cannot write the export: {error}")))
+                self.notice = Some(Notice::err(t!("notice.export_failed", error = error)))
             }
         }
         cx.notify();
@@ -1238,18 +1249,16 @@ impl RootView {
         };
         let report = jar.youtube();
         let message = match report.state {
-            cookies::AuthState::SignedIn => format!(
-                "Signed in. {} YouTube cookies, {} expired.",
-                report.total, report.expired
+            cookies::AuthState::SignedIn => t!(
+                "notice.test_signed_in",
+                total = report.total,
+                expired = report.expired
             ),
-            cookies::AuthState::Partial => format!(
-                "Incomplete sign-in — missing {}.",
-                report.missing.join(", ")
-            ),
-            cookies::AuthState::NoAuth => {
-                "No YouTube authentication cookies in this jar.".to_string()
+            cookies::AuthState::Partial => {
+                t!("notice.test_partial", names = report.missing.join(", "))
             }
-            cookies::AuthState::NotYouTube => "This jar has no youtube.com cookies.".to_string(),
+            cookies::AuthState::NoAuth => t!("notice.test_no_auth").to_string(),
+            cookies::AuthState::NotYouTube => t!("notice.test_not_youtube").to_string(),
         };
         let tone = match report.state {
             cookies::AuthState::SignedIn if report.expired == 0 => Tone::Ok,
@@ -1321,6 +1330,21 @@ impl RootView {
         cx.notify();
     }
 
+    /// `system` or a language code. Applies at once: the next frame is drawn
+    /// in the new language, field placeholders included.
+    pub(crate) fn set_language(&mut self, choice: &str, cx: &mut Context<Self>) {
+        self.settings.language = choice.to_string();
+        crate::i18n::set(crate::i18n::resolve(choice));
+        self.url_input
+            .update(cx, |input, _| input.set_placeholder(t!("input.url")));
+        self.domain_input
+            .update(cx, |input, _| input.set_placeholder(t!("input.domain")));
+        self.dir_input
+            .update(cx, |input, _| input.set_placeholder(t!("input.folder")));
+        self.persist_settings();
+        cx.notify();
+    }
+
     pub(crate) fn set_browser(&mut self, browser: &str, cx: &mut Context<Self>) {
         self.settings.browser = browser.to_string();
         self.persist_settings();
@@ -1339,9 +1363,9 @@ impl RootView {
         }
         let dir = self.settings.dir();
         if let Err(error) = paths::ensure_dir(&dir) {
-            self.notice = Some(Notice::err(format!("Cannot use that folder: {error}")));
+            self.notice = Some(Notice::err(t!("notice.folder_unusable", error = error)));
         } else {
-            self.notice = Some(Notice::ok(format!("Downloads go to {}", dir.display())));
+            self.notice = Some(Notice::ok(t!("notice.folder_set", path = dir.display())));
         }
         self.persist_settings();
         cx.notify();
@@ -1363,9 +1387,9 @@ impl RootView {
         let found = self.tools.ready_count();
         let total = crate::core::tools::TOOL_COUNT;
         self.notice = Some(if found == total {
-            Notice::ok("Every tool is available.")
+            Notice::ok(t!("notice.tools_all"))
         } else {
-            Notice::warn(format!("{found} of {total} tools found."))
+            Notice::warn(t!("notice.tools_some", found = found, total = total))
         });
         cx.notify();
     }
@@ -1377,6 +1401,32 @@ impl RootView {
         if let UpdateState::Ready(ready) = std::mem::replace(&mut self.update, UpdateState::Idle) {
             let _ = update::install(&ready, false);
         }
+    }
+}
+
+/// A job's stage, as the engine names it, in the interface language.
+pub(crate) fn stage_label(stage: &str) -> &str {
+    match stage {
+        "starting" => t!("stage.starting"),
+        "queued" => t!("stage.queued"),
+        "resolving" => t!("stage.resolving"),
+        "downloading" => t!("stage.downloading"),
+        "processing" => t!("stage.processing"),
+        "paused" => t!("stage.paused"),
+        "done" => t!("stage.done"),
+        "checking" => t!("stage.checking"),
+        "extracting" => t!("stage.extracting"),
+        other => other,
+    }
+}
+
+/// Where a jar came from, as stored in cookies.json, in the interface language.
+pub(crate) fn source_label(source: &str) -> &str {
+    match source {
+        "file" => t!("cookies.source.file"),
+        "browser" => t!("cookies.source.browser"),
+        "clipboard" => t!("cookies.source.clipboard"),
+        other => other,
     }
 }
 
@@ -1439,7 +1489,7 @@ fn export_browser_cookies(
     }
     let output = command
         .output()
-        .map_err(|error| format!("cannot run yt-dlp: {error}"))?;
+        .map_err(|error| t!("browser.cannot_run", error = error))?;
 
     if let Ok(text) = std::fs::read_to_string(out) {
         if text.contains('\t') {
@@ -1455,15 +1505,10 @@ fn export_browser_cookies(
         .trim_start_matches("ERROR:")
         .trim();
     if line.to_ascii_lowercase().contains("dpapi") {
-        return Err(
-            "This browser protects its cookies with app-bound encryption, so nothing can be read out of it. Export cookies.txt with a browser extension and use “Paste” instead."
-                .into(),
-        );
+        return Err(t!("browser.app_bound").into());
     }
     if line.is_empty() {
-        Err(format!(
-            "No cookies could be read from {browser}. Is it installed, and are you signed in?"
-        ))
+        Err(t!("browser.nothing_read", browser = browser))
     } else {
         Err(line.to_string())
     }

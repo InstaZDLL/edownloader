@@ -29,9 +29,10 @@ getrandom = "0.3"
 
 # The maximize button's way back: GPUI's `zoom_window` only maximizes on
 # Windows, so restoring goes through the window's handle (src/views.rs).
+# Globalization: the display language, for the interface (src/i18n.rs).
 [target.'cfg(windows)'.dependencies]
 raw-window-handle = "0.6"
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_UI_WindowsAndMessaging"] }
 
 [build-dependencies]
 # Embeds the icon and a VERSIONINFO block in the Windows executable (build.rs).

@@ -91,7 +91,7 @@ pub fn normalize(raw: &str) -> Result<String, String> {
         .trim_matches(|c: char| matches!(c, '"' | '\'' | '<' | '>' | '`'))
         .trim();
     if trimmed.is_empty() {
-        return Err("Paste a link first.".into());
+        return Err(t!("link.empty").into());
     }
     if trimmed.to_ascii_lowercase().starts_with("magnet:") {
         return Ok(trimmed.to_string());
@@ -101,12 +101,12 @@ pub fn normalize(raw: &str) -> Result<String, String> {
         return Ok(trimmed.to_string());
     }
     if lower.contains("://") {
-        return Err("Only http(s) and magnet links are supported.".into());
+        return Err(t!("link.scheme").into());
     }
     if looks_like_host(trimmed) {
         return Ok(format!("https://{trimmed}"));
     }
-    Err("That does not look like a link.".into())
+    Err(t!("link.not_a_link").into())
 }
 
 /// Host without userinfo, port or `www.` noise.
@@ -225,7 +225,7 @@ pub fn classify(raw: &str) -> Result<Link, String> {
     }
     let host = host_of(&url);
     if host.is_empty() {
-        return Err("That link has no host.".into());
+        return Err(t!("link.no_host").into());
     }
     let site = site_label(&host);
     // A known site is media. Elsewhere the path decides: a file name with a

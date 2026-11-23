@@ -56,7 +56,7 @@ impl Container {
     pub fn label(self) -> &'static str {
         match self {
             Container::Mp4 => "mp4",
-            Container::Native => "native",
+            Container::Native => t!("container.native"),
         }
     }
 }
@@ -71,10 +71,10 @@ impl FormatPreset {
 
     pub fn label(self) -> &'static str {
         match self {
-            FormatPreset::Best => "best",
+            FormatPreset::Best => t!("preset.best"),
             FormatPreset::P1080 => "1080p",
             FormatPreset::P720 => "720p",
-            FormatPreset::Audio => "audio",
+            FormatPreset::Audio => t!("preset.audio"),
         }
     }
 
@@ -386,7 +386,7 @@ impl Engine {
         drop(slot);
         self.emit(Event::EngineStatus {
             ok: true,
-            message: format!("aria2 ready ({version})"),
+            message: t!("status.aria2_ready", version = version),
         });
         Ok(daemon)
     }
@@ -578,7 +578,7 @@ impl Engine {
         if let Err(error) = crate::core::paths::ensure_dir(&request.dest_dir) {
             self.emit(Event::Failed {
                 id: request.id,
-                message: format!("cannot create the download folder: {error}"),
+                message: t!("error.folder", error = error),
             });
             return;
         }
@@ -840,10 +840,7 @@ fn is_unsupported_url(stderr: &[String], errors: &[String]) -> bool {
 fn friendly_error(stderr: &[String], errors: &[String], context: FailureContext) -> Option<String> {
     let haystack = format!("{}\n{}", stderr.join("\n"), errors.join("\n")).to_ascii_lowercase();
     if haystack.contains("sign in to confirm") || haystack.contains("confirm you") {
-        return Some(
-            "YouTube wants a signed-in session for this link. Import your cookies (Cookies tab) and retry."
-                .into(),
-        );
+        return Some(t!("error.signin").into());
     }
     // Checked before the format error: a missing or failing JavaScript engine
     // is what produces an empty format list on YouTube, and it looks identical
@@ -853,9 +850,9 @@ fn friendly_error(stderr: &[String], errors: &[String], context: FailureContext)
         || haystack.contains("challenge solver script")
     {
         return Some(if context.has_js_runtime {
-            "YouTube's JavaScript challenge could not be solved even with the detected runtime — update yt-dlp.".into()
+            t!("error.js_failed").into()
         } else {
-            "YouTube needs a JavaScript runtime to unlock its formats. Install Deno or Node.js, then retry.".into()
+            t!("error.js_missing").into()
         });
     }
     // A jar that is present but not really authenticated makes YouTube answer
@@ -866,46 +863,35 @@ fn friendly_error(stderr: &[String], errors: &[String], context: FailureContext)
         || haystack.contains("only images are available")
     {
         return Some(if context.used_cookies {
-            "YouTube offered no playable formats: the cookie jar is expired or not signed in. Re-export cookies.txt and retry."
-                .into()
+            t!("error.no_formats_cookies").into()
         } else {
-            "This link has no downloadable formats (live stream, premiere or region lock).".into()
+            t!("error.no_formats").into()
         });
     }
     if haystack.contains("failed to decrypt with dpapi") {
-        return Some(
-            "The browser refused cookie decryption (Chrome's app-bound encryption). Export cookies.txt from a browser extension and import that instead."
-                .into(),
-        );
+        return Some(t!("error.dpapi").into());
     }
     if haystack.contains("private video") || haystack.contains("is private") {
-        return Some(
-            "This video is private — the cookie jar must belong to an account that can see it."
-                .into(),
-        );
+        return Some(t!("error.private").into());
     }
     if haystack.contains("video unavailable") || haystack.contains("not available in your country")
     {
-        return Some(
-            "The site reports this item unavailable, or not available from your region.".into(),
-        );
+        return Some(t!("error.unavailable").into());
     }
     if haystack.contains("http error 403") {
-        return Some(
-            "The server refused the request (403). Cookies from that site usually fix it.".into(),
-        );
+        return Some(t!("error.http403").into());
     }
     if haystack.contains("http error 429") || haystack.contains("too many requests") {
-        return Some("Rate limited (429). Wait a little, or authenticate with cookies.".into());
+        return Some(t!("error.http429").into());
     }
     if haystack.contains("members-only") || haystack.contains("join this channel") {
-        return Some("Members-only video: the cookie jar must belong to a member account.".into());
+        return Some(t!("error.members").into());
     }
     if haystack.contains("this live event will begin") || haystack.contains("premieres in") {
-        return Some("This is a scheduled stream that has not started yet.".into());
+        return Some(t!("error.scheduled").into());
     }
     if haystack.contains("timed out") || haystack.contains("connection") {
-        return Some("The site could not be reached. Check the connection or retry.".into());
+        return Some(t!("error.network").into());
     }
     // Prefer the last line that actually starts an error.
     errors

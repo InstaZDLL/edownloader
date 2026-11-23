@@ -60,10 +60,10 @@ impl Component {
     /// What it is for, in the words of someone who just wants the file.
     pub fn purpose(self) -> &'static str {
         match self {
-            Component::YtDlp => "YouTube and 1,800 other sites",
-            Component::Aria2 => "fast, resumable direct links and magnets",
-            Component::Ffmpeg => "merging video and audio, MP4 output",
-            Component::Deno => "solves YouTube's player challenge",
+            Component::YtDlp => t!("setup.purpose.ytdlp"),
+            Component::Aria2 => t!("setup.purpose.aria2"),
+            Component::Ffmpeg => t!("setup.purpose.ffmpeg"),
+            Component::Deno => t!("setup.purpose.deno"),
         }
     }
 
@@ -186,7 +186,7 @@ fn install(
     emit: &dyn Fn(SetupEvent),
 ) -> Result<(), String> {
     if !supported() {
-        return Err("automatic installation is only available on 64-bit Windows".into());
+        return Err(t!("setup.only_windows").into());
     }
     let source = component.source();
     std::fs::create_dir_all(dir)
@@ -204,7 +204,7 @@ fn install(
             Some(url) => {
                 let list = net::get_text(agent, url, 1 << 20)?;
                 Some(net::find_sha256(&list, name).ok_or_else(|| {
-                    format!("{} publishes no checksum for {name}", component.label())
+                    t!("setup.no_checksum", tool = component.label(), file = name)
                 })?)
             }
             None => None,
@@ -223,9 +223,10 @@ fn install(
     if let Some(expected) = expected {
         if actual != expected {
             let _ = std::fs::remove_file(&download);
-            return Err(format!(
-                "{name} does not match the checksum {} publishes; nothing was installed",
-                component.label()
+            return Err(t!(
+                "setup.checksum_mismatch",
+                file = name,
+                tool = component.label()
             ));
         }
     }
@@ -254,7 +255,7 @@ fn place(from: &Path, to: &Path) -> Result<(), String> {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
         if error.kind() == std::io::ErrorKind::PermissionDenied {
-            format!("{name} is in use; let the running downloads finish, then try again")
+            t!("setup.in_use", file = name)
         } else {
             format!("cannot install {name}: {error}")
         }

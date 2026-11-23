@@ -42,7 +42,7 @@ impl ThemeName {
 
     pub fn label(self) -> &'static str {
         match self {
-            ThemeName::System => "system",
+            ThemeName::System => t!("theme.system"),
             ThemeName::Latte => "latte",
             ThemeName::Frappe => "frappe",
             ThemeName::Macchiato => "macchiato",

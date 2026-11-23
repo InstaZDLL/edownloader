@@ -15,6 +15,7 @@ or a socket.
 ```text
 src/
   main.rs            window, key bindings, entry point
+  i18n.rs            interface languages: t!/tn!, plural rules, system language
   app.rs             state: tasks, cookie store, settings, tools, updates, event pump
   views.rs           rendering: title bar, banners, tabs, task list, cookie manager, settings
   theme.rs           Catppuccin palettes, type scale, runtime theme selection
@@ -34,6 +35,24 @@ src/
     human.rs         size/speed/ETA/expiry formatting
     paths.rs         data directories, file picker, reveal
 ```
+
+## Languages
+
+Every string the interface shows is a key in `locales/<code>.json`, compiled
+into the binary: English (`en`, the reference), French, German, Spanish,
+Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Code asks for
+`t!("key")`, or `t!("key", name = value)` to fill `{name}`; counts go through
+`tn!("key", n)`, which picks `key.one` or `key.other` by the language's rule
+(French and Portuguese put 0 with 1, Japanese and Chinese have one form).
+
+The language is Settings › appearance › Language: `system` follows the
+Windows display language, falling back to English. It is a process-wide
+setting, so the engine's threads word their errors in it too. Technical
+diagnostics (network, RPC, update internals) stay in English.
+
+To add or change a string, edit `en.json` and every other file with it: the
+tests fail when a translation lacks a key, has one English does not, or
+drops a `{placeholder}`, and when the code uses a key `en.json` lacks.
 
 ## Routing
 

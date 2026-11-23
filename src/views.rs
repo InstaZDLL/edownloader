@@ -363,7 +363,10 @@ impl RootView {
                 };
                 (format!("{} · {}", jar.name, auth.state.label()), tone)
             }
-            None => ("no cookies".to_string(), theme::palette().text_faint),
+            None => (
+                t!("titlebar.no_cookies").to_string(),
+                theme::palette().text_faint,
+            ),
         };
 
         let tools_ready = self.tools.ready_count();
@@ -424,7 +427,11 @@ impl RootView {
                     .text_size(px(11.))
                     .text_color(rgb(tools_fg))
                     .font_family(theme::FONT_MONO)
-                    .child(format!("tools {tools_ready}/{tools_total}")),
+                    .child(t!(
+                        "titlebar.tools",
+                        ready = tools_ready,
+                        total = tools_total
+                    )),
             )
     }
 
@@ -435,11 +442,16 @@ impl RootView {
     fn setup_banner(&mut self, cx: &mut Context<Self>) -> Option<Div> {
         if let Some(run) = self.setup.running.as_ref() {
             let step = (run.finished + 1).min(run.count);
-            let name = run.current.map(|c| c.label()).unwrap_or("tools");
+            let name = run.current.map(|c| c.label()).unwrap_or(t!("setup.tools"));
             let amount = match (run.stage, run.total) {
-                ("downloading", Some(total)) => {
-                    format!(" · {} of {}", human::bytes(run.done), human::bytes(total))
-                }
+                ("downloading", Some(total)) => format!(
+                    " · {}",
+                    t!(
+                        "task.of",
+                        done = human::bytes(run.done),
+                        total = human::bytes(total)
+                    )
+                ),
                 ("downloading", None) => format!(" · {}", human::bytes(run.done)),
                 _ => String::new(),
             };
@@ -463,8 +475,14 @@ impl RootView {
                                     .text_size(px(theme::TEXT_SM))
                                     .truncate()
                                     .child(format!(
-                                        "Installing {name} ({step} of {}) · {}{amount}",
-                                        run.count, run.stage
+                                        "{}{amount}",
+                                        t!(
+                                            "setup.installing",
+                                            name = name,
+                                            step = step,
+                                            count = run.count,
+                                            stage = crate::app::stage_label(run.stage)
+                                        )
                                     )),
                             )
                             .child(w::progress(fraction, theme::palette().info)),
@@ -484,16 +502,9 @@ impl RootView {
             .iter()
             .any(|c| matches!(c, crate::core::setup::Component::YtDlp));
         let headline = if essential {
-            format!(
-                "edownloader needs {} to download from YouTube and other sites.",
-                names.join(", ")
-            )
+            t!("setup.needs", names = names.join(", "))
         } else {
-            format!(
-                "{} {} not installed yet.",
-                names.join(", "),
-                if names.len() == 1 { "is" } else { "are" }
-            )
+            tn!("setup.not_installed", names.len(), names = names.join(", "))
         };
         Some(
             banner(theme::palette().warn_soft)
@@ -512,14 +523,11 @@ impl RootView {
                                 .child(headline),
                         )
                         .child(
-                            w::faint(format!(
-                                "{} · from each project's official releases, checksums verified",
-                                details.join(" · ")
-                            ))
-                            .truncate(),
+                            w::faint(format!("{} · {}", details.join(" · "), t!("setup.origin")))
+                                .truncate(),
                         ),
                 )
-                .child(w::primary_button("Install").on_mouse_up(
+                .child(w::primary_button(t!("button.install")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
                         |this: &mut RootView,
@@ -530,7 +538,7 @@ impl RootView {
                         },
                     ),
                 ))
-                .child(w::ghost_button("Not now").on_mouse_up(
+                .child(w::ghost_button(t!("button.not_now")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
                         |this: &mut RootView,
@@ -551,15 +559,12 @@ impl RootView {
         }
         let (text, version, ready) = match &self.update {
             UpdateState::Ready(ready) => (
-                format!(
-                    "edownloader {} is ready. It installs when you close the app, or now:",
-                    ready.version
-                ),
+                t!("update.ready_banner", version = ready.version),
                 ready.version.clone(),
                 true,
             ),
             UpdateState::Available(version) => (
-                format!("edownloader {version} is out."),
+                t!("update.out_banner", version = version),
                 version.clone(),
                 false,
             ),
@@ -577,7 +582,7 @@ impl RootView {
                     .child(text),
             );
         let row = if ready {
-            row.child(w::primary_button("Restart to update").on_mouse_up(
+            row.child(w::primary_button(t!("button.restart_update")).on_mouse_up(
                 MouseButton::Left,
                 cx.listener(
                     |this: &mut RootView,
@@ -594,9 +599,9 @@ impl RootView {
         Some(
             row.child(
                 (if ready {
-                    w::ghost_button("What's new")
+                    w::ghost_button(t!("button.whats_new"))
                 } else {
-                    w::primary_button("Download")
+                    w::primary_button(t!("button.download"))
                 })
                 .on_mouse_up(
                     MouseButton::Left,
@@ -610,7 +615,7 @@ impl RootView {
                     ),
                 ),
             )
-            .child(w::ghost_button("Later").on_mouse_up(
+            .child(w::ghost_button(t!("button.later")).on_mouse_up(
                 MouseButton::Left,
                 cx.listener(
                     |this: &mut RootView,
@@ -683,7 +688,7 @@ impl RootView {
                     .items_center()
                     .gap(px(6.))
                     .child(div().flex_1().child(self.url_input.clone()))
-                    .child(w::primary_button("Download").on_mouse_up(
+                    .child(w::primary_button(t!("button.download")).on_mouse_up(
                         MouseButton::Left,
                         cx.listener(
                             |this: &mut RootView,
@@ -694,7 +699,7 @@ impl RootView {
                             },
                         ),
                     ))
-                    .child(w::button("Paste+go").on_mouse_up(
+                    .child(w::button(t!("button.paste_go")).on_mouse_up(
                         MouseButton::Left,
                         cx.listener(
                             |this: &mut RootView,
@@ -712,10 +717,10 @@ impl RootView {
                     .flex_row()
                     .items_center()
                     .gap(px(6.))
-                    .child(w::section("format"))
+                    .child(w::section(t!("section.format")))
                     .children(presets)
                     .child(vsep())
-                    .child(toggle_chip("playlist", playlist_on).on_mouse_up(
+                    .child(toggle_chip(t!("chip.playlist"), playlist_on).on_mouse_up(
                         MouseButton::Left,
                         cx.listener(
                             |this: &mut RootView,
@@ -726,7 +731,7 @@ impl RootView {
                             },
                         ),
                     ))
-                    .child(toggle_chip("metadata", metadata_on).on_mouse_up(
+                    .child(toggle_chip(t!("chip.metadata"), metadata_on).on_mouse_up(
                         MouseButton::Left,
                         cx.listener(
                             |this: &mut RootView,
@@ -738,7 +743,7 @@ impl RootView {
                         ),
                     ))
                     .child(vsep())
-                    .child(toggle_chip("cookies", cookies_on).on_mouse_up(
+                    .child(toggle_chip(t!("chip.cookies"), cookies_on).on_mouse_up(
                         MouseButton::Left,
                         cx.listener(
                             |this: &mut RootView,
@@ -750,8 +755,12 @@ impl RootView {
                         ),
                     ))
                     .child(w::spacer())
-                    .child(w::mono(folder, theme::palette().text_faint))
-                    .child(w::ghost_button("open").on_mouse_up(
+                    .child(
+                        w::mono(folder, theme::palette().text_faint)
+                            .min_w(px(0.))
+                            .truncate(),
+                    )
+                    .child(w::ghost_button(t!("button.open_folder")).on_mouse_up(
                         MouseButton::Left,
                         cx.listener(
                             |this: &mut RootView,
@@ -782,14 +791,10 @@ impl RootView {
                     div()
                         .text_size(px(theme::TEXT_LG))
                         .text_color(rgb(theme::palette().text_dim))
-                        .child("Paste a link to begin"),
+                        .child(t!("empty.title")),
                 )
-                .child(w::faint(
-                    "Direct files go through aria2, media links through yt-dlp.",
-                ))
-                .child(w::faint(
-                    "Private or age-gated videos need a cookie jar — Cookies tab.",
-                ))
+                .child(w::faint(t!("empty.routing")))
+                .child(w::faint(t!("empty.cookies")))
                 .child(
                     div()
                         .flex()
@@ -798,13 +803,13 @@ impl RootView {
                         .gap(px(5.))
                         .pt(px(6.))
                         .child(w::keycap("Enter"))
-                        .child(w::faint("queue"))
+                        .child(w::faint(t!("keys.queue")))
                         .child(w::keycap("Ctrl+V"))
-                        .child(w::faint("paste"))
+                        .child(w::faint(t!("keys.paste")))
                         .child(w::keycap("Ctrl+O"))
-                        .child(w::faint("folder"))
+                        .child(w::faint(t!("keys.folder")))
                         .child(w::keycap("Ctrl+1..3"))
-                        .child(w::faint("tabs")),
+                        .child(w::faint(t!("keys.tabs"))),
                 );
         }
 
@@ -828,11 +833,7 @@ impl RootView {
                     .py(px(5.))
                     .border_b_1()
                     .border_color(rgb(theme::palette().border))
-                    .child(w::section(format!(
-                        "queue · {} item{}",
-                        self.tasks.len(),
-                        if self.tasks.len() == 1 { "" } else { "s" }
-                    )))
+                    .child(w::section(tn!("queue.title", self.tasks.len())))
                     .child(
                         div()
                             .flex()
@@ -840,7 +841,7 @@ impl RootView {
                             .gap(px(8.))
                             .when(finished > 0, |this| {
                                 this.child(
-                                    w::ghost_button(format!("clear {finished} finished")).on_mouse_up(
+                                    w::ghost_button(t!("queue.clear", n = finished)).on_mouse_up(
                                         MouseButton::Left,
                                         cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                             this.clear_finished(cx);
@@ -877,9 +878,9 @@ impl RootView {
 
         if task.is_pausable() {
             let label = if task.state == TaskState::Paused {
-                "Resume"
+                t!("button.resume")
             } else {
-                "Pause"
+                t!("button.pause")
             };
             actions.push(w::ghost_button(label).on_mouse_up(
                 MouseButton::Left,
@@ -895,7 +896,7 @@ impl RootView {
         }
         match task.state {
             TaskState::Done | TaskState::Failed | TaskState::Cancelled => {
-                actions.push(w::ghost_button("Retry").on_mouse_up(
+                actions.push(w::ghost_button(t!("button.retry")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
                         move |this: &mut RootView,
@@ -906,7 +907,7 @@ impl RootView {
                         },
                     ),
                 ));
-                actions.push(w::ghost_button("Open").on_mouse_up(
+                actions.push(w::ghost_button(t!("button.open")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
                         move |this: &mut RootView,
@@ -917,7 +918,7 @@ impl RootView {
                         },
                     ),
                 ));
-                actions.push(w::ghost_button("Copy").on_mouse_up(
+                actions.push(w::ghost_button(t!("button.copy")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
                         move |this: &mut RootView,
@@ -930,7 +931,7 @@ impl RootView {
                 ));
             }
             _ => {
-                actions.push(w::ghost_button("Cancel").on_mouse_up(
+                actions.push(w::ghost_button(t!("button.cancel")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
                         move |this: &mut RootView,
@@ -1059,7 +1060,7 @@ impl RootView {
                 div()
                     .px(px(8.))
                     .py(px(10.))
-                    .child(w::faint("No jars yet. Import cookies below.")),
+                    .child(w::faint(t!("cookies.no_jars"))),
             );
         }
         for jar in self.store.jars.iter() {
@@ -1072,14 +1073,14 @@ impl RootView {
                 AuthState::Partial => theme::palette().warn,
                 _ => theme::palette().text_faint,
             };
-            let summary = format!(
-                "{} · {} cookies",
-                if jar.domain.is_empty() {
-                    "unknown"
+            let summary = tn!(
+                "cookies.summary",
+                jar.cookies.len(),
+                domain = if jar.domain.is_empty() {
+                    t!("cookies.unknown")
                 } else {
                     jar.domain.as_str()
-                },
-                jar.cookies.len()
+                }
             );
 
             let row = div()
@@ -1134,7 +1135,7 @@ impl RootView {
                         )
                         .when(active, |this| {
                             this.child(w::chip(
-                                "active",
+                                t!("chip.active"),
                                 theme::palette().accent,
                                 theme::palette().accent_soft,
                             ))
@@ -1168,8 +1169,8 @@ impl RootView {
                             .flex()
                             .items_center()
                             .justify_between()
-                            .child(w::section(format!("cookie jars · {}", self.store.jars.len())))
-                            .child(w::faint("stored in your profile")),
+                            .child(w::section(t!("cookies.jars", n = self.store.jars.len())))
+                            .child(w::faint(t!("cookies.stored"))),
                     )
                     .child(
                         div()
@@ -1181,13 +1182,13 @@ impl RootView {
                             .children(jar_rows),
                     )
                     .child(w::divider())
-                    .child(w::section("import"))
+                    .child(w::section(t!("section.import")))
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .gap(px(2.))
-                            .child(w::faint("Target domain — only needed for a Cookie: header"))
+                            .child(w::faint(t!("cookies.domain_hint")))
                             .child(self.domain_input.clone()),
                     )
                     .child(
@@ -1196,7 +1197,7 @@ impl RootView {
                             .items_center()
                             .gap(px(5.))
                             .child(
-                                w::primary_button("Paste cookies").on_mouse_up(
+                                w::primary_button(t!("button.paste_cookies")).on_mouse_up(
                                     MouseButton::Left,
                                     cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                         this.paste_cookies(cx);
@@ -1204,7 +1205,7 @@ impl RootView {
                                 ),
                             )
                             .child(
-                                w::button("From file…").on_mouse_up(
+                                w::button(t!("button.from_file")).on_mouse_up(
                                     MouseButton::Left,
                                     cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                         this.pick_cookie_file(cx);
@@ -1214,7 +1215,7 @@ impl RootView {
                     )
                     .child(
                         div().flex().items_center().gap(px(5.)).child(
-                            w::button(format!("From {}", self.settings.browser)).on_mouse_up(
+                            w::button(t!("button.from_browser", browser = self.settings.browser)).on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                     this.snapshot_browser(cx);
@@ -1225,9 +1226,7 @@ impl RootView {
                     .when(busy.is_some(), |this| {
                         this.child(w::mono(busy.unwrap_or_default(), theme::palette().warn))
                     })
-                    .child(w::faint(
-                        "Accepts Netscape cookies.txt, cookie-editor JSON, or name=value pairs.",
-                    )),
+                    .child(w::faint(t!("cookies.accepts"))),
             )
             .child(self.cookie_detail(cx))
     }
@@ -1241,11 +1240,11 @@ impl RootView {
                 .flex_1()
                 .min_h(px(0.))
                 .child(w::empty_state(
-                    "No cookie jar selected",
+                    t!("cookies.none_selected"),
                     vec![
-                        "YouTube asks for a signed-in session on many links.",
-                        "Export cookies.txt with a browser extension, then paste it.",
-                        "The active jar is handed to yt-dlp automatically.",
+                        t!("cookies.none_line1"),
+                        t!("cookies.none_line2"),
+                        t!("cookies.none_line3"),
                     ],
                 ));
         };
@@ -1260,7 +1259,7 @@ impl RootView {
         let expired = jar.expired(now);
         let active = self.store.active.as_deref() == Some(id.as_str());
         let name = jar.name.clone();
-        let source = jar.source.clone();
+        let source = crate::app::source_label(&jar.source).to_string();
         let total = jar.cookies.len();
         let domain = jar.domain.clone();
         let netscape = jar.netscape();
@@ -1293,7 +1292,7 @@ impl RootView {
             AuthState::NotYouTube => (theme::palette().text_dim, theme::palette().elevated),
         };
         let auth_label = match auth.state {
-            AuthState::NotYouTube => "not a YouTube jar".to_string(),
+            AuthState::NotYouTube => t!("auth.not_youtube_jar").to_string(),
             other => other.label().to_string(),
         };
 
@@ -1317,10 +1316,18 @@ impl RootView {
                 .py(px(3.))
                 .border_b_1()
                 .border_color(rgb(theme::palette().border))
-                .child(div().w(px(190.)).child(w::section("name")))
-                .child(div().flex_1().child(w::section("domain")))
-                .child(div().w(px(80.)).child(w::section("expires")))
-                .child(div().w(px(28.)).child(w::section("only"))),
+                .child(div().w(px(190.)).child(w::section(t!("cookies.col.name"))))
+                .child(div().flex_1().child(w::section(t!("cookies.col.domain"))))
+                .child(
+                    div()
+                        .w(px(80.))
+                        .child(w::section(t!("cookies.col.expires"))),
+                )
+                .child(
+                    div()
+                        .w(px(28.))
+                        .child(w::section(t!("cookies.col.http_only"))),
+                ),
         );
         for cookie in jar.cookies.iter().take(200) {
             table.push(
@@ -1392,7 +1399,7 @@ impl RootView {
                                     .child(name),
                             )
                             .child(w::mono(
-                                format!("{total} cookies · {source} · {domain}"),
+                                tn!("cookies.meta", total, source = source, domain = domain),
                                 theme::palette().text_faint,
                             )),
                     )
@@ -1404,7 +1411,7 @@ impl RootView {
                             .flex_shrink_0()
                             .when(!active, |this| {
                                 this.child(
-                                    w::primary_button("Use this jar").on_mouse_up(
+                                    w::primary_button(t!("button.use_jar")).on_mouse_up(
                                         MouseButton::Left,
                                         cx.listener(move |this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                             this.set_active_jar(&id_use, cx);
@@ -1413,10 +1420,10 @@ impl RootView {
                                 )
                             })
                             .when(active, |this| {
-                                this.child(w::chip("active for downloads", theme::palette().accent, theme::palette().accent_soft))
+                                this.child(w::chip(t!("chip.active_downloads"), theme::palette().accent, theme::palette().accent_soft))
                             })
                             .child(
-                                w::button("Export .txt").on_mouse_up(
+                                w::button(t!("button.export")).on_mouse_up(
                                     MouseButton::Left,
                                     cx.listener(move |this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                         this.export_jar(&id_export, cx);
@@ -1424,7 +1431,7 @@ impl RootView {
                                 ),
                             )
                             .child(
-                                w::ghost_button("Test").on_mouse_up(
+                                w::ghost_button(t!("button.test")).on_mouse_up(
                                     MouseButton::Left,
                                     cx.listener(move |this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                         this.test_jar(&id_test, cx);
@@ -1432,7 +1439,7 @@ impl RootView {
                                 ),
                             )
                             .child(
-                                w::danger_button("Delete").on_mouse_up(
+                                w::danger_button(t!("button.delete")).on_mouse_up(
                                     MouseButton::Left,
                                     cx.listener(move |this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                         this.remove_jar(&id_delete, cx);
@@ -1456,7 +1463,7 @@ impl RootView {
                             .flex()
                             .items_center()
                             .justify_between()
-                            .child(w::section("youtube"))
+                            .child(w::section(t!("section.youtube")))
                             .child(w::chip(auth_label, auth_fg, auth_bg)),
                     )
                     .when(auth.state != AuthState::NotYouTube, |this| {
@@ -1466,10 +1473,10 @@ impl RootView {
                                 .flex_row()
                                 .items_center()
                                 .gap(px(4.))
-                                .child(w::faint("present"))
+                                .child(w::faint(t!("cookies.present")))
                                 .children(present)
                                 .when(auth.present.is_empty(), |this| {
-                                    this.child(w::mono("none", theme::palette().danger))
+                                    this.child(w::mono(t!("cookies.present_none"), theme::palette().danger))
                                 }),
                         )
                         .child(
@@ -1478,36 +1485,27 @@ impl RootView {
                                 .flex_row()
                                 .items_center()
                                 .gap(px(4.))
-                                .child(w::faint("missing"))
+                                .child(w::faint(t!("cookies.missing")))
                                 .children(missing)
                                 .when(auth.missing.is_empty(), |this| {
-                                    this.child(w::mono("nothing", theme::palette().accent))
+                                    this.child(w::mono(t!("cookies.missing_none"), theme::palette().accent))
                                 }),
                         )
                         .when(expired > 0, |this| {
                             this.child(w::mono(
-                                format!(
-                                    "{expired} cookie{} already expired — re-export them",
-                                    if expired == 1 { "" } else { "s" }
-                                ),
+                                tn!("cookies.expired", expired),
                                 theme::palette().warn,
                             ))
                         })
-                        .child(w::faint(
-                            "Sign-in needs SID/__Secure-*PSID together with LOGIN_INFO.",
-                        ))
+                        .child(w::faint(t!("cookies.signin_rule")))
                         .when(auth.state == AuthState::SignedIn, |this| {
-                            this.child(w::faint(
-                                "Names look right; only a real download proves the session still works.",
-                            ))
+                            this.child(w::faint(t!("cookies.names_ok")))
                         })
                     })
                     .when(auth.state == AuthState::NotYouTube, |this| {
                         // A jar for another site is perfectly valid; saying
                         // "missing SID" here would read as a failure.
-                        this.child(w::faint(format!(
-                            "This jar belongs to {domain}. It is still handed to yt-dlp for that site."
-                        )))
+                        this.child(w::faint(t!("cookies.other_site", domain = domain)))
                     }),
             )
             .child(
@@ -1516,7 +1514,7 @@ impl RootView {
                     .flex_row()
                     .items_center()
                     .gap(px(4.))
-                    .child(w::section("domains"))
+                    .child(w::section(t!("section.domains")))
                     .children(domain_chips),
             )
             .child(
@@ -1531,12 +1529,9 @@ impl RootView {
                     .children(table),
             )
             .when(total > 200, |this| {
-                this.child(w::faint(format!("Showing 200 of {total} cookies.")))
+                this.child(w::faint(t!("cookies.showing", total = total)))
             })
-            .child(w::faint(format!(
-                "Netscape export is {} bytes.",
-                netscape.len()
-            ))),
+            .child(w::faint(t!("cookies.netscape_size", bytes = netscape.len()))),
         )
         .child(scroll_thumb(&self.jar_scroll))
     }
@@ -1602,7 +1597,7 @@ impl RootView {
             let found = path.is_some();
             let text = path
                 .map(|p| p.display().to_string())
-                .unwrap_or_else(|| "not installed".to_string());
+                .unwrap_or_else(|| t!("tools.not_installed").to_string());
             div()
                 .flex()
                 .flex_row()
@@ -1626,7 +1621,11 @@ impl RootView {
                         .child(w::mono(text, theme::palette().text_faint).truncate()),
                 )
                 .child(w::chip(
-                    if found { "ready" } else { "missing" },
+                    if found {
+                        t!("chip.ready")
+                    } else {
+                        t!("chip.missing")
+                    },
                     if found {
                         theme::palette().accent_hover
                     } else {
@@ -1644,7 +1643,7 @@ impl RootView {
         let mut tool_actions: Vec<Div> = Vec::new();
         if crate::core::setup::supported() && self.setup.running.is_none() {
             if !self.setup.missing.is_empty() {
-                tool_actions.push(w::button("install missing").on_mouse_up(
+                tool_actions.push(w::button(t!("button.install_missing")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
                         |this: &mut RootView,
@@ -1656,7 +1655,7 @@ impl RootView {
                     ),
                 ));
             }
-            tool_actions.push(w::ghost_button("update yt-dlp").on_mouse_up(
+            tool_actions.push(w::ghost_button(t!("button.update_ytdlp")).on_mouse_up(
                 MouseButton::Left,
                 cx.listener(
                     |this: &mut RootView,
@@ -1671,12 +1670,12 @@ impl RootView {
 
         let check_updates = self.settings.check_updates;
         let update_status = match &self.update {
-            UpdateState::Idle => "not checked yet".to_string(),
-            UpdateState::Checking => "checking…".to_string(),
-            UpdateState::UpToDate => "up to date".to_string(),
-            UpdateState::Ready(ready) => format!("{} ready, installs on close", ready.version),
-            UpdateState::Available(version) => format!("{version} is out"),
-            UpdateState::Failed(error) => format!("check failed: {error}"),
+            UpdateState::Idle => t!("update.status.idle").to_string(),
+            UpdateState::Checking => t!("update.status.checking").to_string(),
+            UpdateState::UpToDate => t!("update.status.up_to_date").to_string(),
+            UpdateState::Ready(ready) => t!("update.status.ready", version = ready.version),
+            UpdateState::Available(version) => t!("update.status.out", version = version),
+            UpdateState::Failed(error) => t!("update.status.failed", error = error),
         };
 
         let yt = self.tools.yt_dlp.clone();
@@ -1697,6 +1696,23 @@ impl RootView {
                           _: &mut Window,
                           cx: &mut Context<RootView>| {
                         this.set_theme(choice, cx);
+                    },
+                ),
+            ));
+        }
+        let mut languages: Vec<Div> = Vec::new();
+        let choices = std::iter::once(("system", t!("settings.language_system")))
+            .chain(crate::i18n::Lang::ALL.map(|lang| (lang.code(), lang.native_name())));
+        for (code, name) in choices {
+            let selected = self.settings.language == code;
+            languages.push(w::segment_small(name, selected).on_mouse_up(
+                MouseButton::Left,
+                cx.listener(
+                    move |this: &mut RootView,
+                          _: &gpui::MouseUpEvent,
+                          _: &mut Window,
+                          cx: &mut Context<RootView>| {
+                        this.set_language(code, cx);
                     },
                 ),
             ));
@@ -1733,7 +1749,7 @@ impl RootView {
                     .w_full()
                     .items_center()
                     .justify_between()
-                    .child(w::section("appearance"))
+                    .child(w::section(t!("section.appearance")))
                     .child(
                         div()
                             .flex()
@@ -1743,15 +1759,20 @@ impl RootView {
                             .children(swatches),
                     ),
             )
+            .child(w::setting_stack(
+                t!("settings.language"),
+                Some(t!("settings.language_hint")),
+                languages,
+            ))
             .child(w::setting_row(
-                "Theme",
-                Some("Catppuccin flavours; system follows the desktop."),
+                t!("settings.theme"),
+                Some(t!("settings.theme_hint")),
                 div().flex().items_center().gap(px(3.)).children(themes),
             ))
-            .child(w::section("downloads"))
+            .child(w::section(t!("section.downloads")))
             .child(w::setting_row(
-                "Save to",
-                Some("Created automatically when missing."),
+                t!("settings.save_to"),
+                Some(t!("settings.save_to_hint")),
                 div()
                     .flex()
                     .flex_col()
@@ -1763,19 +1784,19 @@ impl RootView {
                             .flex()
                             .items_center()
                             .gap(px(5.))
-                            .child(w::button("Apply").on_mouse_up(
+                            .child(w::button(t!("button.apply")).on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                     this.apply_dir(cx);
                                 }),
                             ))
-                            .child(w::ghost_button("Default").on_mouse_up(
+                            .child(w::ghost_button(t!("button.default")).on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                     this.reset_dir(cx);
                                 }),
                             ))
-                            .child(w::ghost_button("Open").on_mouse_up(
+                            .child(w::ghost_button(t!("button.open")).on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                     let dir = this.settings.dir();
@@ -1787,30 +1808,30 @@ impl RootView {
                     ),
             ))
             .child(w::setting_row(
-                "Downloads at once",
-                Some("Queued links start as slots free up."),
+                t!("settings.concurrency"),
+                Some(t!("settings.concurrency_hint")),
                 stepper(concurrency, cx, |this, delta, cx| this.set_concurrency(delta, cx)),
             ))
             .child(w::setting_row(
-                "Connections per file",
-                Some("aria2 parallel connections for direct links."),
+                t!("settings.connections"),
+                Some(t!("settings.connections_hint")),
                 stepper(connections, cx, |this, delta, cx| this.set_connections(delta, cx)),
             ))
             .child(w::divider())
-            .child(w::section("media"))
+            .child(w::section(t!("section.media")))
             .child(w::setting_row(
-                "Default format",
-                Some("Used for every new media link."),
+                t!("settings.format"),
+                Some(t!("settings.format_hint")),
                 div().flex().items_center().gap(px(4.)).children(presets),
             ))
             .child(w::setting_row(
-                "Container",
-                Some("MP4 plays everywhere; native keeps the best codecs as WebM."),
+                t!("settings.container"),
+                Some(t!("settings.container_hint")),
                 div().flex().items_center().gap(px(4.)).children(containers),
             ))
             .child(w::setting_row(
-                "Whole playlists",
-                Some("Off follows only the linked item."),
+                t!("settings.playlists"),
+                Some(t!("settings.playlists_hint")),
                 toggle(playlist).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
@@ -1819,8 +1840,8 @@ impl RootView {
                 ),
             ))
             .child(w::setting_row(
-                "Embed metadata and cover",
-                Some("Tags the file with title, artist and artwork."),
+                t!("settings.metadata"),
+                Some(t!("settings.metadata_hint")),
                 toggle(metadata).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
@@ -1835,10 +1856,10 @@ impl RootView {
             .gap(px(10.))
             .flex_1()
             .min_w(px(0.))
-            .child(w::section("cookies"))
+            .child(w::section(t!("section.cookies")))
             .child(w::setting_row(
-                "Send the active jar to yt-dlp",
-                Some("Needed for private, age-gated or bot-checked links."),
+                t!("settings.send_jar"),
+                Some(t!("settings.send_jar_hint")),
                 toggle(use_cookies).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
@@ -1846,10 +1867,10 @@ impl RootView {
                     }),
                 ),
             ))
-            .child(w::setting_row(
-                "Browser to read from",
-                Some("Some builds block extraction — paste a cookies.txt then."),
-                div().flex().items_center().gap(px(3.)).children(browsers),
+            .child(w::setting_stack(
+                t!("settings.browser"),
+                Some(t!("settings.browser_hint")),
+                browsers,
             ))
             .child(w::divider())
             .child(
@@ -1857,14 +1878,18 @@ impl RootView {
                     .flex()
                     .items_center()
                     .justify_between()
-                    .child(w::section("tools"))
+                    .gap(px(8.))
+                    .child(w::section(t!("section.tools")).flex_shrink_0())
                     .child(
                         div()
                             .flex()
+                            .flex_wrap()
+                            .justify_end()
                             .items_center()
                             .gap(px(4.))
+                            .min_w(px(0.))
                             .children(tool_actions)
-                            .child(w::ghost_button("re-detect").on_mouse_up(
+                            .child(w::ghost_button(t!("button.redetect")).on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                     this.redetect_tools(cx);
@@ -1894,7 +1919,7 @@ impl RootView {
                                 div()
                                     .text_size(px(theme::TEXT_BASE))
                                     .text_color(rgb(theme::palette().text))
-                                    .child("JavaScript runtime"),
+                                    .child(t!("tools.js_runtime")),
                             )
                             .child(
                                 w::mono(
@@ -1902,7 +1927,7 @@ impl RootView {
                                         Some(runtime) => {
                                             format!("{} — {}", runtime.name, runtime.path.display())
                                         }
-                                        None => "not found — install Deno or Node.js".to_string(),
+                                        None => t!("tools.js_missing").to_string(),
                                     },
                                     theme::palette().text_faint,
                                 )
@@ -1911,9 +1936,9 @@ impl RootView {
                     )
                     .child(w::chip(
                         if js_runtime.is_some() {
-                            "ready"
+                            t!("chip.ready")
                         } else {
-                            "missing"
+                            t!("chip.missing")
                         },
                         if js_runtime.is_some() {
                             theme::palette().accent_hover
@@ -1928,18 +1953,16 @@ impl RootView {
                     )),
             )
             .child(w::faint(if js_runtime.is_some() {
-                "Solves YouTube's signature challenge; without it YouTube only offers storyboards."
+                t!("tools.js_ready_hint")
             } else {
-                "Without a JS runtime YouTube throttles signed-in downloads to storyboards."
+                t!("tools.js_missing_hint")
             }))
-            .child(w::faint(
-                "Installed in the local app-data folder; yt-dlp should be refreshed whenever a site stops working.",
-            ))
+            .child(w::faint(t!("tools.location_hint")))
             .child(w::divider())
-            .child(w::section("updates"))
+            .child(w::section(t!("section.updates")))
             .child(w::setting_row(
-                "Check for updates at launch",
-                Some("New versions download in the background and install when you close the app."),
+                t!("settings.check_updates"),
+                Some(t!("settings.check_updates_hint")),
                 toggle(check_updates).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
@@ -1954,7 +1977,7 @@ impl RootView {
                     .justify_between()
                     .gap(px(8.))
                     .child(w::mono(update_status, theme::palette().text_faint).truncate())
-                    .child(w::ghost_button("check now").on_mouse_up(
+                    .child(w::ghost_button(t!("button.check_now")).on_mouse_up(
                         MouseButton::Left,
                         cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                             this.check_updates_now(cx);
@@ -1962,7 +1985,7 @@ impl RootView {
                     )),
             )
             .child(w::divider())
-            .child(w::section("about"))
+            .child(w::section(t!("section.about")))
             .child(
                 div()
                     .flex()
@@ -1982,13 +2005,13 @@ impl RootView {
                             .items_center()
                             .gap(px(6.))
                             .pt(px(2.))
-                            .child(w::ghost_button("open data folder").on_mouse_up(
+                            .child(w::ghost_button(t!("button.open_data")).on_mouse_up(
                                 MouseButton::Left,
                                 |_: &gpui::MouseUpEvent, _: &mut Window, _: &mut gpui::App| {
                                     crate::core::paths::reveal(&crate::core::paths::app_data_dir());
                                 },
                             ))
-                            .child(w::ghost_button("open downloads").on_mouse_up(
+                            .child(w::ghost_button(t!("button.open_downloads")).on_mouse_up(
                                 MouseButton::Left,
                                 cx.listener(|this: &mut RootView, _: &gpui::MouseUpEvent, _: &mut Window, cx: &mut Context<RootView>| {
                                     let dir = this.settings.dir();
@@ -2011,6 +2034,9 @@ impl RootView {
                     .id("settings-scroll")
                     .flex()
                     .flex_row()
+                    // Without `min_w(0)` the row grows to its content's
+                    // widest line and the right column leaves the window.
+                    .min_w(px(0.))
                     // Without `items_start` the two columns are stretched to the
                     // viewport height, so their content has nothing to overflow
                     // and the pane cannot scroll.
@@ -2034,17 +2060,20 @@ impl RootView {
         let done = self.done_count();
         let speed = self.total_speed();
 
-        let summary = format!(
-            "{} task(s) · {active} active · {queued} queued · {done} done",
-            self.tasks.len()
+        let summary = tn!(
+            "status.summary",
+            self.tasks.len(),
+            active = active,
+            queued = queued,
+            done = done
         );
 
         let right = if speed > 0 {
-            format!("{} total", human::speed(speed))
+            t!("status.total", speed = human::speed(speed))
         } else {
             self.engine_status
                 .clone()
-                .unwrap_or_else(|| "idle".to_string())
+                .unwrap_or_else(|| t!("status.idle").to_string())
         };
 
         let notice = self.notice.clone();
@@ -2091,7 +2120,7 @@ impl RootView {
                                         cx.notify();
                                     }),
                                 )
-                                .child("dismiss"),
+                                .child(t!("button.dismiss")),
                         )
                 }
                 None => div(),
@@ -2114,12 +2143,12 @@ fn toggle_chip(label: &'static str, on: bool) -> Div {
         base.bg(rgb(theme::palette().accent_soft))
             .border_color(rgb(theme::palette().accent_dim))
             .text_color(rgb(theme::palette().accent_hover))
-            .child(format!("{label} on"))
+            .child(t!("chip.on", label = label))
     } else {
         base.bg(rgb(theme::palette().elevated))
             .border_color(rgb(theme::palette().border))
             .text_color(rgb(theme::palette().text_faint))
-            .child(format!("{label} off"))
+            .child(t!("chip.off", label = label))
     }
 }
 

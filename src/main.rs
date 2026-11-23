@@ -9,6 +9,9 @@
 //! magnets included), media sites to yt-dlp. Cookie jars can be imported and
 //! attached, which is what YouTube needs for anything signed-in.
 
+// First, so `t!` and `tn!` are in scope in every module below.
+#[macro_use]
+mod i18n;
 mod app;
 mod core;
 mod theme;

@@ -240,21 +240,34 @@ pub fn spacer() -> Div {
     div().flex_1()
 }
 
+/// Label and hint of a setting. `min_w(0)` lets the text wrap instead of
+/// pushing the control (and the column) past the window: labels run much
+/// longer in German or French than in English.
+fn setting_text(label_text: impl Into<SharedString>, hint: Option<&'static str>) -> Div {
+    let mut text = div()
+        .flex()
+        .flex_col()
+        .gap(px(2.))
+        .flex_1()
+        .min_w(px(0.))
+        .child(
+            div()
+                .text_size(px(theme::TEXT_BASE))
+                .text_color(rgb(theme::palette().text))
+                .child(label_text.into()),
+        );
+    if let Some(hint) = hint {
+        text = text.child(faint(hint));
+    }
+    text
+}
+
 /// A settings row: label on the left, control on the right.
 pub fn setting_row(
     label_text: impl Into<SharedString>,
     hint: Option<&'static str>,
     control: impl IntoElement,
 ) -> Div {
-    let mut text = div().flex().flex_col().gap(px(2.)).flex_1().child(
-        div()
-            .text_size(px(theme::TEXT_BASE))
-            .text_color(rgb(theme::palette().text))
-            .child(label_text.into()),
-    );
-    if let Some(hint) = hint {
-        text = text.child(faint(hint));
-    }
     div()
         .flex()
         .flex_row()
@@ -262,8 +275,39 @@ pub fn setting_row(
         .justify_between()
         .gap(px(12.))
         .py(px(7.))
-        .child(text)
-        .child(div().flex().items_center().gap(px(6.)).child(control))
+        .child(setting_text(label_text, hint))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(6.))
+                .flex_shrink_0()
+                .child(control),
+        )
+}
+
+/// A setting whose control is a row of choices too wide to sit beside its
+/// label (languages, browsers): the choices go underneath and wrap.
+pub fn setting_stack(
+    label_text: impl Into<SharedString>,
+    hint: Option<&'static str>,
+    choices: Vec<Div>,
+) -> Div {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(6.))
+        .py(px(7.))
+        .child(setting_text(label_text, hint))
+        .child(
+            div()
+                .flex()
+                .flex_row()
+                .flex_wrap()
+                .items_center()
+                .gap(px(3.))
+                .children(choices),
+        )
 }
 
 /// Centered call to action for an empty pane.

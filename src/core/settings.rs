@@ -30,10 +30,17 @@ pub struct Settings {
     /// Look for a new version of the app at launch (src/core/update.rs).
     #[serde(default = "yes")]
     pub check_updates: bool,
+    /// Interface language: `system`, or a code from src/i18n.rs.
+    #[serde(default = "system")]
+    pub language: String,
 }
 
 fn yes() -> bool {
     true
+}
+
+fn system() -> String {
+    "system".to_string()
 }
 
 impl Default for Settings {
@@ -50,6 +57,7 @@ impl Default for Settings {
             use_cookies: true,
             browser: "chrome".to_string(),
             check_updates: true,
+            language: system(),
         }
     }
 }
@@ -76,6 +84,9 @@ impl Settings {
 
     /// Keep stored values inside the ranges the UI and the tools accept.
     pub fn sanitize(&mut self) {
+        if self.language != "system" && crate::i18n::Lang::from_code(&self.language).is_none() {
+            self.language = system();
+        }
         self.max_concurrent = self.max_concurrent.clamp(1, 8);
         self.connections = self.connections.clamp(1, 16);
         if self.download_dir.trim().is_empty() {

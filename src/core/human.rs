@@ -59,21 +59,19 @@ pub fn days_until(expires: i64, now: i64) -> i64 {
 
 pub fn expiry_label(expires: i64, now: i64) -> String {
     if expires <= 0 {
-        return "session".into();
+        return t!("expiry.session").into();
     }
     let d = days_until(expires, now);
     if d < 0 {
-        "expired".into()
+        t!("expiry.expired").into()
     } else if d == 0 {
-        "today".into()
-    } else if d == 1 {
-        "1 day".into()
+        t!("expiry.today").into()
     } else if d < 45 {
-        format!("{d} days")
+        tn!("expiry.days", d)
     } else if d < 730 {
-        format!("{} mo", d / 30)
+        t!("expiry.months", n = d / 30)
     } else {
-        format!("{} y", d / 365)
+        t!("expiry.years", n = d / 365)
     }
 }
 

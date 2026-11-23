@@ -32,3 +32,6 @@ Thumbs.db
 # local scratch space used while building this project
 /scaffold
 /_probe
+
+# wrangler's local state, from checking the R2 bucket by hand
+/.wrangler/

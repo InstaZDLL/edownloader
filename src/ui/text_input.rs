@@ -70,6 +70,11 @@ impl TextInput {
         &self.content
     }
 
+    /// The grey hint shown while the field is empty (the language changed).
+    pub fn set_placeholder(&mut self, placeholder: impl Into<SharedString>) {
+        self.placeholder = placeholder.into();
+    }
+
     pub fn set_content(&mut self, text: impl AsRef<str>, cx: &mut Context<Self>) {
         self.content = SharedString::from(text.as_ref().to_string());
         let end = self.content.len();

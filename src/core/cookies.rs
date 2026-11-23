@@ -110,16 +110,10 @@ pub fn parse_auto(content: &str, domain_hint: Option<&str>) -> Result<Vec<Cookie
             let domain = domain_hint
                 .map(str::trim)
                 .filter(|d| !d.is_empty())
-                .ok_or_else(|| {
-                    "This looks like a `Cookie:` header — enter its domain first (for example youtube.com)."
-                        .to_string()
-                })?;
+                .ok_or_else(|| t!("import.header_needs_domain").to_string())?;
             parse_header(content, domain)
         }
-        CookieFormat::Unknown => Err(
-            "Unrecognized cookie format. Accepted: Netscape cookies.txt, JSON (cookie-editor), or a Cookie: header plus a domain."
-                .into(),
-        ),
+        CookieFormat::Unknown => Err(t!("import.unrecognized").into()),
     }
 }
 
@@ -162,7 +156,7 @@ pub fn parse_netscape(content: &str) -> Result<Vec<Cookie>, String> {
         });
     }
     if cookies.is_empty() {
-        return Err("No cookies found in that Netscape file.".into());
+        return Err(t!("import.netscape_empty").into());
     }
     Ok(cookies)
 }
@@ -264,24 +258,21 @@ fn host_from_url(url: &str) -> Option<String> {
 pub fn parse_json(content: &str) -> Result<Vec<Cookie>, String> {
     let text = strip_bom(content).trim();
     if text.is_empty() {
-        return Err("That JSON is empty.".into());
+        return Err(t!("import.json_empty").into());
     }
     let value = match serde_json::from_str::<serde_json::Value>(text) {
         Ok(value) => value,
         Err(first_error) => {
             let Some(slice) = json_slice(text) else {
-                return Err(format!("That JSON could not be parsed: {first_error}"));
+                return Err(t!("import.json_invalid", error = first_error));
             };
-            serde_json::from_str::<serde_json::Value>(slice).map_err(|_| {
-                format!(
-                    "That JSON could not be parsed: {first_error}. Expected an array of cookie objects."
-                )
-            })?
+            serde_json::from_str::<serde_json::Value>(slice)
+                .map_err(|_| t!("import.json_invalid_expected", error = first_error))?
         }
     };
 
     let Some(items) = json_items(value) else {
-        return Err("Expected a JSON array of cookie objects.".into());
+        return Err(t!("import.json_not_array").into());
     };
     let found = items.len();
     let mut cookies = Vec::with_capacity(found);
@@ -325,9 +316,9 @@ pub fn parse_json(content: &str) -> Result<Vec<Cookie>, String> {
     }
     if cookies.is_empty() {
         return Err(if found == 0 {
-            "That JSON held no cookie objects.".to_string()
+            t!("import.json_no_objects").to_string()
         } else {
-            format!("{found} JSON object(s) found, but none carried both a domain and a name.")
+            tn!("import.json_unnamed", found)
         });
     }
     Ok(cookies)
@@ -338,7 +329,7 @@ pub fn parse_json(content: &str) -> Result<Vec<Cookie>, String> {
 pub fn parse_header(content: &str, domain: &str) -> Result<Vec<Cookie>, String> {
     let root = domain.trim().trim_start_matches('.').to_ascii_lowercase();
     if root.is_empty() {
-        return Err("A domain is required for Cookie header import.".into());
+        return Err(t!("import.header_domain_required").into());
     }
     let cookie_domain = if root.contains('.') {
         format!(".{root}")
@@ -375,7 +366,7 @@ pub fn parse_header(content: &str, domain: &str) -> Result<Vec<Cookie>, String> 
         });
     }
     if cookies.is_empty() {
-        return Err("No `name=value` pairs found in that header.".into());
+        return Err(t!("import.header_no_pairs").into());
     }
     Ok(cookies)
 }
@@ -539,10 +530,10 @@ pub enum AuthState {
 impl AuthState {
     pub fn label(self) -> &'static str {
         match self {
-            AuthState::NotYouTube => "no YouTube cookies",
-            AuthState::SignedIn => "signed in",
-            AuthState::Partial => "incomplete sign-in",
-            AuthState::NoAuth => "not signed in",
+            AuthState::NotYouTube => t!("auth.no_youtube"),
+            AuthState::SignedIn => t!("auth.signed_in"),
+            AuthState::Partial => t!("auth.partial"),
+            AuthState::NoAuth => t!("auth.no_auth"),
         }
     }
 }

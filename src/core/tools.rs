@@ -132,13 +132,13 @@ impl Tools {
     pub fn yt_dlp(&self) -> Result<&Path, String> {
         self.yt_dlp
             .as_deref()
-            .ok_or_else(|| "yt-dlp is not installed: install it from Settings › Tools".to_string())
+            .ok_or_else(|| t!("tools.ytdlp_missing").to_string())
     }
 
     pub fn aria2(&self) -> Result<&Path, String> {
         self.aria2
             .as_deref()
-            .ok_or_else(|| "aria2 is not installed: install it from Settings › Tools".to_string())
+            .ok_or_else(|| t!("tools.aria2_missing").to_string())
     }
 
     /// Compact status for the toolbar: which tools are usable.
