@@ -216,7 +216,17 @@ jobs:
           cargo install cargo-packager --version "$CARGO_PACKAGER_VERSION" --locked
           cargo install cargo-generate-rpm --version "$CARGO_GENERATE_RPM_VERSION" --locked
       - run: cargo build --release --locked
-      - run: cargo packager --release --formats deb,appimage
+      # The AppImage carries its update information, and its .zsync is
+      # published beside it: AppImageUpdate, Gear Lever and AppImageLauncher
+      # then update it by itself, fetching only the blocks that changed.
+      # (The app's own updater uses latest.json, as on Windows.)
+      - name: Packages
+        env:
+          LDAI_UPDATE_INFORMATION: gh-releases-zsync|${{ github.repository_owner }}|${{ github.event.repository.name }}|latest|edownloader_*_${{ matrix.arch }}.AppImage.zsync
+        run: |
+          cargo packager --release --formats deb,appimage
+          # appimagetool writes the .zsync where linuxdeploy ran.
+          mv target/packager/.cargo-packager/appimage/*.AppImage.zsync target/packager/
       - run: cargo generate-rpm --output target/packager/
       - name: Check the packages
         run: |
@@ -225,6 +235,12 @@ jobs:
           test ${#deb[@]} -eq 1 -a -f "${deb[0]}"
           test ${#rpm[@]} -eq 1 -a -f "${rpm[0]}"
           test ${#app[@]} -eq 1 -a -f "${app[0]}"
+          # The .zsync describes this very file, and the AppImage points at it.
+          name="$(basename "${app[0]}")"
+          zsync="${app[0]}.zsync"
+          grep -a -m1 '^Filename: ' "$zsync" | grep -Fx "Filename: $name"
+          grep -a -m1 '^SHA-1: ' "$zsync" | grep -Fx "SHA-1: $(sha1sum "${app[0]}" | cut -d' ' -f1)"
+          "${app[0]}" --appimage-updateinformation | grep -F "|latest|edownloader_*_${{ matrix.arch }}.AppImage.zsync"
           dpkg-deb --info "${deb[0]}"
           dpkg-deb --contents "${deb[0]}"
           # The AppImage must start far enough to print its own files.
@@ -238,6 +254,7 @@ jobs:
             target/packager/*.deb
             target/packager/*.rpm
             target/packager/*.AppImage
+            target/packager/*.AppImage.zsync
           if-no-files-found: error
 
   publish:

@@ -22,6 +22,7 @@ git push origin main v0.2.0
 | `edownloader_<version>_amd64.deb`, `_arm64.deb` | Debian/Ubuntu packages (cargo-packager), depend on aria2 |
 | `edownloader-<version>-1.x86_64.rpm`, `.aarch64.rpm` | Fedora/openSUSE packages (cargo-generate-rpm), require aria2 |
 | `edownloader_<version>_x86_64.AppImage`, `_aarch64.AppImage` | portable Linux builds (cargo-packager + linuxdeploy), self-updating |
+| `….AppImage.zsync` | zsync metadata for each AppImage, named by its embedded update information (`gh-releases-zsync\|InstaZDLL\|edownloader\|latest\|edownloader_*_<arch>.AppImage.zsync`), for AppImageUpdate and the like |
 | `SHA256SUMS.txt` | the SHA-256 of every package |
 | `latest.json` | the update manifest: the Windows installer's and the AppImages' addresses and minisign signatures |
 

@@ -87,5 +87,5 @@ jobs:
             platform="${p%%:*}" name="${p#*:}"
             jq -e --arg p "$platform" --arg n "$name" '.platforms[$p].url == "https://example.com/r/" + $n' "$dist/latest.json"
             jq -r --arg p "$platform" '.platforms[$p].signature' "$dist/latest.json" > "$dist/$name.minisig"
-            rsign verify -p "$RUNNER_TEMP/test.pub" "$dist/$name" | grep -F "edownloader 9.9.9 $name"
+            rsign verify -p "$RUNNER_TEMP/test.pub" "$dist/$name" 2>&1 | grep -F "edownloader 9.9.9 $name"
           done
