@@ -90,6 +90,29 @@ enum WindowGlyph {
     Close,
 }
 
+/// Maximize, or back to the previous size. GPUI's `zoom_window` only ever
+/// maximizes on Windows (and the native caption-button hit area never fires
+/// under GPUI 0.2.2), so the restore half asks Windows directly.
+fn toggle_maximized(window: &mut Window) {
+    #[cfg(windows)]
+    if window.is_maximized() {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::WindowsAndMessaging::{ShowWindowAsync, SW_RESTORE};
+
+        let raw = HasWindowHandle::window_handle(window).map(|handle| handle.as_raw());
+        if let Ok(RawWindowHandle::Win32(handle)) = raw {
+            // SAFETY: the handle belongs to this live window, and
+            // ShowWindowAsync only posts a request to its thread.
+            unsafe {
+                let _ = ShowWindowAsync(HWND(handle.hwnd.get() as *mut _), SW_RESTORE);
+            }
+        }
+        return;
+    }
+    window.zoom_window();
+}
+
 /// Window controls are drawn as vectors rather than text. The characters that
 /// used to stand in for them (`□`, `✕`, `—`) are missing from Segoe UI at this
 /// size and rendered as an unknown-character box.
@@ -298,7 +321,7 @@ impl RootView {
                     },
                     false,
                 )
-                .on_mouse_up(MouseButton::Left, |_, window, _| window.zoom_window()),
+                .on_mouse_up(MouseButton::Left, |_, window, _| toggle_maximized(window)),
             )
             .child(window_button(WindowGlyph::Close, true).on_mouse_up(
                 MouseButton::Left,

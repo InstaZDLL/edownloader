@@ -27,6 +27,12 @@ semver = "1"
 minisign-verify = "0.3.0"
 getrandom = "0.3"
 
+# The maximize button's way back: GPUI's `zoom_window` only maximizes on
+# Windows, so restoring goes through the window's handle (src/views.rs).
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = "0.6"
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
 [build-dependencies]
 # Embeds the icon and a VERSIONINFO block in the Windows executable (build.rs).
 winresource = "0.1.34"
