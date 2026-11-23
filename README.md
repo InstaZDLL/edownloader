@@ -13,9 +13,10 @@
 
 <p align="center">
   <a href="https://github.com/InstaZDLL/edownloader/actions/workflows/ci.yml"><img src="https://github.com/InstaZDLL/edownloader/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/version-0.1.0-10b981?style=flat-square" alt="Version 0.1.0" />
+  <img src="https://img.shields.io/github/v/release/InstaZDLL/edownloader?style=flat-square&label=version&color=10b981" alt="Latest version" />
   <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?style=flat-square&logo=windows11&logoColor=white" alt="Windows 10 and 11" />
   <img src="https://img.shields.io/badge/sites-1%2C800%2B-10b981?style=flat-square" alt="1,800+ sites" />
+  <img src="https://img.shields.io/badge/languages-8-10b981?style=flat-square&logo=googletranslate&logoColor=white" alt="8 languages" />
   <img src="https://img.shields.io/badge/rust-1.100-orange?style=flat-square&logo=rust" alt="Rust 1.100" />
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT license" />
 </p>
