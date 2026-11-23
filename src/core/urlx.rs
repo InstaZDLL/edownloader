@@ -100,6 +100,11 @@ pub fn normalize(raw: &str) -> Result<String, String> {
     if lower.starts_with("http://") || lower.starts_with("https://") {
         return Ok(trimmed.to_string());
     }
+    // A `blob:` address names memory inside one browser tab: nothing outside
+    // that tab can read it, but the page it plays on usually can be.
+    if lower.starts_with("blob:") {
+        return Err(t!("link.blob").into());
+    }
     if lower.contains("://") {
         return Err(t!("link.scheme").into());
     }
@@ -205,12 +210,21 @@ const FILE_EXTENSIONS: &[&str] = &[
 /// Whether the URL's last path segment is a file name with a download
 /// extension.
 pub fn looks_like_file(url: &str) -> bool {
-    file_hint(url)
-        .and_then(|name| {
-            name.rsplit_once('.')
-                .map(|(_, ext)| ext.to_ascii_lowercase())
-        })
-        .is_some_and(|ext| FILE_EXTENSIONS.contains(&ext.as_str()))
+    extension(url).is_some_and(|ext| FILE_EXTENSIONS.contains(&ext.as_str()))
+}
+
+/// Whether the URL is a stream's playlist itself (HLS `.m3u8`, DASH `.mpd`)
+/// rather than the page that plays it. Such addresses usually carry a token
+/// or expect the page's `Referer`, which a copied link no longer has.
+pub fn is_stream_manifest(url: &str) -> bool {
+    extension(url).is_some_and(|ext| ext == "m3u8" || ext == "mpd")
+}
+
+fn extension(url: &str) -> Option<String> {
+    file_hint(url).and_then(|name| {
+        name.rsplit_once('.')
+            .map(|(_, ext)| ext.to_ascii_lowercase())
+    })
 }
 
 pub fn classify(raw: &str) -> Result<Link, String> {
@@ -249,6 +263,24 @@ pub fn classify(raw: &str) -> Result<Link, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn blob_links_are_refused_with_their_own_reason() {
+        let blob = normalize("blob:https://www.example.com/0b6c1f2e-6a3b").unwrap_err();
+        let ftp = normalize("ftp://example.com/file").unwrap_err();
+        assert!(blob.contains("blob:"), "{blob}");
+        assert_ne!(blob, ftp);
+    }
+
+    #[test]
+    fn stream_manifests_are_told_from_pages() {
+        assert!(is_stream_manifest(
+            "https://cdn.example.com/a/master.m3u8?token=x"
+        ));
+        assert!(is_stream_manifest("https://cdn.example.com/a/manifest.MPD"));
+        assert!(!is_stream_manifest("https://www.example.com/watch/123"));
+        assert!(!is_stream_manifest("https://example.com/clip.mp4"));
+    }
 
     #[test]
     fn youtube_variants_are_media() {

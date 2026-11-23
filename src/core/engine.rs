@@ -535,6 +535,11 @@ impl Engine {
             "-o".into(),
             "%(title).150B [%(id)s].%(ext)s".into(),
         ];
+        // HLS and DASH streams come in fragments, which yt-dlp fetches one at
+        // a time unless told otherwise: the "connections per file" setting
+        // applies to them as it does to aria2's direct links.
+        args.push("--concurrent-fragments".into());
+        args.push(concurrent_fragments(request.connections).to_string());
         if !request.media.playlist {
             args.push("--no-playlist".into());
         }
@@ -713,6 +718,7 @@ impl Engine {
                         let context = FailureContext {
                             used_cookies: request.cookie_file.is_some(),
                             has_js_runtime: self.tools().js_runtime.is_some(),
+                            stream_manifest: crate::core::urlx::is_stream_manifest(&request.url),
                         };
                         let message = friendly_error(&stderr_lines, &errors, context)
                             .unwrap_or_else(|| format!("yt-dlp exited with {status}"));
@@ -820,12 +826,13 @@ fn parse_progress(rest: &str) -> Option<(u64, Option<u64>, u64)> {
     Some((downloaded, total.filter(|t| *t > 0), speed))
 }
 
-/// Turn yt-dlp's stderr into one actionable sentence.
 /// What the failed job was configured with, for error translation.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct FailureContext {
     pub used_cookies: bool,
     pub has_js_runtime: bool,
+    /// The link was a `.m3u8`/`.mpd` playlist, not the page playing it.
+    pub stream_manifest: bool,
 }
 
 /// yt-dlp's answer when no extractor, the generic one included, finds
@@ -837,8 +844,20 @@ fn is_unsupported_url(stderr: &[String], errors: &[String]) -> bool {
         .any(|line| line.to_ascii_lowercase().contains("unsupported url"))
 }
 
+/// Fragments of an HLS or DASH stream fetched at once: the connections
+/// setting, capped at 8, past which streaming servers tend to throttle or
+/// refuse rather than go faster.
+fn concurrent_fragments(connections: usize) -> usize {
+    connections.clamp(1, 8)
+}
+
+/// Turn yt-dlp's stderr into one actionable sentence.
 fn friendly_error(stderr: &[String], errors: &[String], context: FailureContext) -> Option<String> {
     let haystack = format!("{}\n{}", stderr.join("\n"), errors.join("\n")).to_ascii_lowercase();
+    // First: no cookie, runtime or retry changes anything for these.
+    if haystack.contains("drm protected") || haystack.contains("drm-protected") {
+        return Some(t!("error.drm").into());
+    }
     if haystack.contains("sign in to confirm") || haystack.contains("confirm you") {
         return Some(t!("error.signin").into());
     }
@@ -879,7 +898,13 @@ fn friendly_error(stderr: &[String], errors: &[String], context: FailureContext)
         return Some(t!("error.unavailable").into());
     }
     if haystack.contains("http error 403") {
-        return Some(t!("error.http403").into());
+        // A copied playlist address has lost the page's Referer, or its
+        // token has expired: the page itself is what yt-dlp can open.
+        return Some(if context.stream_manifest {
+            t!("error.http403_stream").into()
+        } else {
+            t!("error.http403").into()
+        });
     }
     if haystack.contains("http error 429") || haystack.contains("too many requests") {
         return Some(t!("error.http429").into());
@@ -948,6 +973,13 @@ mod tests {
             &["ERROR: [youtube] abc: Sign in to confirm you're not a bot".to_string()],
             &[]
         ));
+    }
+
+    #[test]
+    fn stream_fragments_follow_the_connections_setting() {
+        assert_eq!(concurrent_fragments(0), 1);
+        assert_eq!(concurrent_fragments(4), 4);
+        assert_eq!(concurrent_fragments(16), 8);
     }
 
     #[test]
@@ -1071,6 +1103,7 @@ mod tests {
             FailureContext {
                 used_cookies: true,
                 has_js_runtime: true,
+                ..FailureContext::default()
             },
         )
         .unwrap();
@@ -1096,8 +1129,8 @@ mod tests {
             &stderr,
             &stderr,
             FailureContext {
-                used_cookies: false,
                 has_js_runtime: true,
+                ..FailureContext::default()
             },
         )
         .unwrap();
@@ -1111,6 +1144,36 @@ mod tests {
         let message = friendly_error(&stderr, &stderr, FailureContext::default()).unwrap();
         assert!(!message.contains("cookie jar"), "{message}");
         assert!(message.contains("no downloadable formats"), "{message}");
+    }
+
+    #[test]
+    fn drm_is_named_before_anything_else() {
+        let stderr = vec!["ERROR: [generic] x: This video is DRM protected".to_string()];
+        let message = friendly_error(
+            &stderr,
+            &stderr,
+            FailureContext {
+                used_cookies: true,
+                ..FailureContext::default()
+            },
+        )
+        .unwrap();
+        assert!(message.contains("DRM"), "{message}");
+    }
+
+    #[test]
+    fn forbidden_playlist_points_at_the_page() {
+        let stderr =
+            vec!["ERROR: unable to download video data: HTTP Error 403: Forbidden".to_string()];
+        let stream = FailureContext {
+            stream_manifest: true,
+            ..FailureContext::default()
+        };
+        let message = friendly_error(&stderr, &stderr, stream).unwrap();
+        assert!(message.contains("page"), "{message}");
+        let page = friendly_error(&stderr, &stderr, FailureContext::default()).unwrap();
+        assert!(page.contains("403"), "{page}");
+        assert_ne!(message, page);
     }
 
     #[test]
