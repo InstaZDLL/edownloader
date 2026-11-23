@@ -70,17 +70,17 @@ From then on edownloader keeps itself up to date: new versions download in the b
 
 ### Linux
 
-x86_64 and arm64, on Ubuntu 22.04, Debian 12, Fedora 36 or anything newer. Pick the package for your system from the [latest release](https://github.com/InstaZDLL/edownloader/releases/latest):
+x86_64 and arm64, with glibc 2.35 or newer: Ubuntu 22.04+, Debian 12+, Fedora 36+ and current openSUSE releases (RHEL 9, on glibc 2.34, is too old). Pick the package for your system from the [latest release](https://github.com/InstaZDLL/edownloader/releases/latest):
 
 | System | Package | Install |
 | --- | --- | --- |
 | Debian, Ubuntu, Mint… | `edownloader_<version>_amd64.deb` / `_arm64.deb` | `sudo apt install ./edownloader_<version>_amd64.deb` |
-| Fedora, openSUSE, RHEL… | `edownloader-<version>-1.x86_64.rpm` / `.aarch64.rpm` | `sudo dnf install ./edownloader-<version>-1.x86_64.rpm` |
+| Fedora, openSUSE… | `edownloader-<version>-1.x86_64.rpm` / `.aarch64.rpm` | `sudo dnf install ./edownloader-<version>-1.x86_64.rpm` |
 | Anything else | `edownloader_<version>_x86_64.AppImage` / `_aarch64.AppImage` | `chmod +x edownloader_*.AppImage`, then run it |
 
 The `.deb` and `.rpm` bring aria2 from your distribution as a dependency; with the AppImage, install `aria2` with your package manager if you want direct links and magnets. yt-dlp, ffmpeg and Deno install from the banner at first launch, as on Windows, unless your system already has them.
 
-The AppImage updates itself like the Windows app. The `.deb` and `.rpm` tell you when a version is out; your package manager installs it.
+The AppImage updates itself like the Windows app, when it sits in a folder you can write to. The `.deb` and `.rpm` tell you when a version is out; your package manager installs it.
 
 ## Why edownloader
 
