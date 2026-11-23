@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Name=edownloader
+GenericName=Downloader
+GenericName[fr]=Gestionnaire de téléchargements
+GenericName[de]=Download-Manager
+GenericName[es]=Gestor de descargas
+GenericName[it]=Gestore di download
+GenericName[pt_BR]=Gerenciador de downloads
+GenericName[ja]=ダウンローダー
+GenericName[zh_CN]=下载工具
+Comment=One field. All your downloads: videos, music, direct files and magnets.
+Comment[fr]=Un seul champ. Tous vos téléchargements : vidéos, musique, fichiers directs et magnets.
+Exec=edownloader
+Icon=edownloader
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=download;youtube;yt-dlp;aria2;torrent;magnet;video;music;
+StartupWMClass=edownloader

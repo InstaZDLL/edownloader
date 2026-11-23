@@ -13,8 +13,10 @@
 //! anyone answering in its place, can pass an older installer off as a newer
 //! version. A version no installer backs is passed over for the next newest.
 //!
-//! Only the installer's copy updates itself. A portable copy (an executable
-//! run from anywhere else) only hears that a version is out.
+//! Only a copy that can replace itself does: on Windows the one the
+//! installer put there, on Linux an AppImage in a folder it may write to.
+//! A portable Windows copy, or a Linux copy from a .deb or .rpm (the package
+//! manager's to update), only hears that a version is out.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -35,10 +37,28 @@ const MANIFEST_URLS: [&str; 2] = [
 const PUBLIC_KEY: &str = "RWTg+b5e/g96GQAO1MoTKyOMe/Q9TpVbY5KKotdzU8Om9LZoiqP6Esh3";
 /// A release's page, before its version.
 pub const RELEASE_PAGE: &str = "https://github.com/InstaZDLL/edownloader/releases/tag/v";
-/// The manifest key of the package this build installs.
+/// The manifest key of the package this build installs, and that
+/// package's file name ending: the NSIS installer, or the AppImage.
+#[cfg(windows)]
 const PLATFORM: &str = "windows-x86_64";
+#[cfg(windows)]
+const PACKAGE_SUFFIX: &str = ".exe";
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+const PLATFORM: &str = "linux-x86_64";
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+const PLATFORM: &str = "linux-aarch64";
+#[cfg(not(windows))]
+const PACKAGE_SUFFIX: &str = ".AppImage";
+#[cfg(not(any(
+    windows,
+    all(
+        target_os = "linux",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    )
+)))]
+const PLATFORM: &str = "none";
 /// No installer comes near this, nor a manifest near the other.
-const MAX_PACKAGE: u64 = 64 << 20;
+const MAX_PACKAGE: u64 = 128 << 20;
 const MAX_MANIFEST: u64 = 1 << 20;
 /// Replaces both hosts with one manifest, in any build: how an update is
 /// tried before it is published.
@@ -76,10 +96,34 @@ pub struct Update {
 
 /// Whether this copy was put there by the installer, which leaves its
 /// uninstaller beside the executable. Only that copy can be replaced.
+#[cfg(windows)]
 pub fn installed() -> bool {
     std::env::current_exe()
         .map(|exe| exe.with_file_name("uninstall.exe").is_file())
         .unwrap_or(false)
+}
+
+/// Linux: whether this copy runs from an AppImage (whose runtime names the
+/// file in `$APPIMAGE`) in a folder the user may write to, so the new one
+/// can take its place. A .deb or .rpm is the package manager's to replace.
+#[cfg(not(windows))]
+pub fn installed() -> bool {
+    appimage().is_some_and(|file| {
+        let Some(dir) = file.parent() else {
+            return false;
+        };
+        let probe = dir.join(".edownloader-write-test");
+        let writable = std::fs::write(&probe, b"").is_ok();
+        let _ = std::fs::remove_file(&probe);
+        writable
+    })
+}
+
+#[cfg(not(windows))]
+fn appimage() -> Option<PathBuf> {
+    std::env::var_os("APPIMAGE")
+        .map(PathBuf::from)
+        .filter(|file| file.is_file())
 }
 
 /// Whether to look at all: release builds do; a debug build only when it is
@@ -216,7 +260,7 @@ fn fetch(
     version: &str,
 ) -> Result<PathBuf, String> {
     let name = net::file_of(&package.url);
-    if !net::is_plain_file_name(name) || !name.ends_with(".exe") {
+    if !net::is_plain_file_name(name) || !name.ends_with(PACKAGE_SUFFIX) {
         return Err(format!("{} is not an installer name", package.url));
     }
     let file = dir.join(name);
@@ -281,6 +325,7 @@ fn clear(dir: &Path, keep: &[PathBuf]) {
 /// otherwise silent, as the app closes. The installer itself ends a copy
 /// still running before it replaces the files; `/NS` keeps it from bringing
 /// back shortcuts the user removed.
+#[cfg(windows)]
 pub fn install(update: &Update, restart: bool) -> std::io::Result<()> {
     let args: &[&str] = if restart {
         &["/P", "/NS", "/R"]
@@ -292,6 +337,31 @@ pub fn install(update: &Update, restart: bool) -> std::io::Result<()> {
         .stdin(std::process::Stdio::null())
         .spawn()
         .map(drop)
+}
+
+/// Linux: the verified AppImage takes the running one's place. It is copied
+/// beside it first, so the final step is a rename within one folder: the
+/// file is never seen half-written, and the running copy keeps its open
+/// file. `restart` starts the new one; the caller then quits.
+#[cfg(not(windows))]
+pub fn install(update: &Update, restart: bool) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let target = appimage().ok_or_else(|| std::io::Error::other("not running from an AppImage"))?;
+    let staged = target.with_extension("AppImage.new");
+    std::fs::copy(&update.file, &staged)?;
+    std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
+    if let Err(error) = std::fs::rename(&staged, &target) {
+        let _ = std::fs::remove_file(&staged);
+        return Err(error);
+    }
+    let _ = std::fs::remove_file(&update.file);
+    if restart {
+        std::process::Command::new(&target)
+            .stdin(std::process::Stdio::null())
+            .spawn()
+            .map(drop)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

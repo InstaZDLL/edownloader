@@ -17,8 +17,36 @@ pub const TEXT_LG: f32 = 15.0;
 
 pub const STATUS_H: f32 = 26.0;
 
+/// Windows draws with its own fonts. Elsewhere there is no font every
+/// system has, so the app brings Inter and JetBrains Mono (both SIL OFL,
+/// licenses in assets/fonts); scripts they lack (CJK) fall back to the
+/// system's fonts.
+#[cfg(windows)]
 pub const FONT_UI: &str = "Segoe UI";
+#[cfg(windows)]
 pub const FONT_MONO: &str = "Consolas";
+#[cfg(not(windows))]
+pub const FONT_UI: &str = "Inter";
+#[cfg(not(windows))]
+pub const FONT_MONO: &str = "JetBrains Mono";
+
+/// Registers the bundled fonts with GPUI, where the app uses them.
+pub fn load_fonts(cx: &gpui::App) {
+    #[cfg(not(windows))]
+    {
+        use std::borrow::Cow;
+        let fonts: Vec<Cow<'static, [u8]>> = vec![
+            Cow::Borrowed(include_bytes!("../assets/fonts/Inter-Regular.ttf")),
+            Cow::Borrowed(include_bytes!("../assets/fonts/Inter-SemiBold.ttf")),
+            Cow::Borrowed(include_bytes!("../assets/fonts/JetBrainsMono-Regular.ttf")),
+        ];
+        if let Err(error) = cx.text_system().add_fonts(fonts) {
+            eprintln!("cannot load the bundled fonts: {error}");
+        }
+    }
+    #[cfg(windows)]
+    let _ = cx;
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub enum ThemeName {

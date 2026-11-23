@@ -111,13 +111,18 @@ pub fn reveal(path: &Path) {
 /// Runs the platform's own picker in a short-lived helper process rather than
 /// linking a dialog toolkit: on Windows that is the WinForms dialog through
 /// PowerShell, which every supported machine already has. Returns `None` when
-/// the user cancels or no dialog is available.
+/// the user cancels or no dialog is available. Other systems use GPUI's
+/// picker (the XDG portal on Linux), from app.rs.
+#[cfg(windows)]
 pub fn pick_open_file(title: &str, filter: &str) -> Option<PathBuf> {
-    #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
+        // Both are translated text inside single-quoted PowerShell strings,
+        // where a `'` would end the string: doubled, it stays a character.
+        let title = title.replace('\'', "''");
+        let filter = filter.replace('\'', "''");
         let script = format!(
             "Add-Type -AssemblyName System.Windows.Forms; \
              $d = New-Object System.Windows.Forms.OpenFileDialog; \
@@ -144,11 +149,6 @@ pub fn pick_open_file(title: &str, filter: &str) -> Option<PathBuf> {
         } else {
             Some(PathBuf::from(chosen))
         }
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = (title, filter);
-        None
     }
 }
 

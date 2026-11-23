@@ -296,11 +296,23 @@ pub(crate) enum Side {
 /// The tool installer, as the banner and Settings show it.
 #[derive(Default)]
 pub(crate) struct SetupState {
-    /// What detection did not find; offered at launch.
+    /// What detection did not find and the app can install; offered at launch.
     pub(crate) missing: Vec<Component>,
+    /// What detection did not find and only the system's package manager
+    /// provides here (aria2 on Linux); the banner says how.
+    pub(crate) system: Vec<Component>,
     /// "Not now": the launch banner stays hidden for this session.
     pub(crate) dismissed: bool,
     pub(crate) running: Option<SetupRun>,
+}
+
+impl SetupState {
+    pub(crate) fn refresh(&mut self, tools: &Tools) {
+        if setup::supported() {
+            self.missing = setup::missing(tools);
+            self.system = setup::missing_from_system(tools);
+        }
+    }
 }
 
 pub(crate) struct SetupRun {
@@ -412,18 +424,12 @@ impl RootView {
         cx.observe(&domain_input, |_, _, cx| cx.notify()).detach();
         cx.observe(&dir_input, |_, _, cx| cx.notify()).detach();
 
-        let missing = if setup::supported() {
-            setup::missing(&tools)
-        } else {
-            Vec::new()
-        };
+        let mut setup_state = SetupState::default();
+        setup_state.refresh(&tools);
         let check_updates = settings.check_updates && update::wanted();
 
         let mut view = RootView {
-            setup: SetupState {
-                missing,
-                ..SetupState::default()
-            },
+            setup: setup_state,
             update: UpdateState::Idle,
             update_dismissed: false,
             tab: Tab::Downloads,
@@ -769,7 +775,7 @@ impl RootView {
                 self.setup.running = None;
                 self.tools = Tools::detect();
                 self.engine.set_tools(self.tools.clone());
-                self.setup.missing = setup::missing(&self.tools);
+                self.setup.refresh(&self.tools);
                 self.notice = Some(if failed == 0 {
                     Notice::ok(t!("notice.installed", names = names))
                 } else {
@@ -1168,17 +1174,43 @@ impl RootView {
     pub(crate) fn pick_cookie_file(&mut self, cx: &mut Context<Self>) {
         let tx = self.side_tx.clone();
         self.busy = Some(t!("notice.file_picker").into());
-        let title = t!("dialog.import_title");
-        let filter = format!(
-            "{} (*.txt;*.json)|*.txt;*.json|{} (*.*)|*.*",
-            t!("dialog.cookie_files"),
-            t!("dialog.all_files")
-        );
         cx.notify();
-        std::thread::spawn(move || {
-            let picked = paths::pick_open_file(title, &filter);
-            let _ = tx.send(Side::PickedFile(picked));
-        });
+        #[cfg(windows)]
+        {
+            // The WinForms dialog keeps its cookie-file filter.
+            let title = t!("dialog.import_title");
+            let filter = format!(
+                "{} (*.txt;*.json)|*.txt;*.json|{} (*.*)|*.*",
+                t!("dialog.cookie_files"),
+                t!("dialog.all_files")
+            );
+            std::thread::spawn(move || {
+                let picked = paths::pick_open_file(title, &filter);
+                let _ = tx.send(Side::PickedFile(picked));
+            });
+        }
+        #[cfg(not(windows))]
+        {
+            // GPUI's own picker: the XDG desktop portal on Linux, so the
+            // desktop's file chooser (GNOME, KDE…) opens, sandbox or not.
+            let answer = cx.prompt_for_paths(gpui::PathPromptOptions {
+                files: true,
+                directories: false,
+                multiple: false,
+                prompt: Some(t!("dialog.import_title").into()),
+            });
+            cx.foreground_executor()
+                .spawn(async move {
+                    let picked = answer
+                        .await
+                        .ok()
+                        .and_then(Result::ok)
+                        .flatten()
+                        .and_then(|paths| paths.into_iter().next());
+                    let _ = tx.send(Side::PickedFile(picked));
+                })
+                .detach();
+        }
     }
 
     pub(crate) fn snapshot_browser(&mut self, cx: &mut Context<Self>) {
@@ -1383,7 +1415,7 @@ impl RootView {
     pub(crate) fn redetect_tools(&mut self, cx: &mut Context<Self>) {
         self.tools = Tools::detect();
         self.engine.set_tools(self.tools.clone());
-        self.setup.missing = setup::missing(&self.tools);
+        self.setup.refresh(&self.tools);
         let found = self.tools.ready_count();
         let total = crate::core::tools::TOOL_COUNT;
         self.notice = Some(if found == total {

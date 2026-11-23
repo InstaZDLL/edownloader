@@ -136,9 +136,13 @@ impl Tools {
     }
 
     pub fn aria2(&self) -> Result<&Path, String> {
-        self.aria2
-            .as_deref()
-            .ok_or_else(|| t!("tools.aria2_missing").to_string())
+        self.aria2.as_deref().ok_or_else(|| {
+            if crate::core::setup::Component::Aria2.system_provided() {
+                t!("setup.system_package", names = "aria2")
+            } else {
+                t!("tools.aria2_missing").to_string()
+            }
+        })
     }
 
     /// Compact status for the toolbar: which tools are usable.

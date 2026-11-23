@@ -117,7 +117,8 @@
   "setup.purpose.aria2": "fast, resumable direct links and magnets",
   "setup.purpose.ffmpeg": "merging video and audio, MP4 output",
   "setup.purpose.deno": "solves YouTube's player challenge",
-  "setup.only_windows": "automatic installation is only available on 64-bit Windows",
+  "setup.unsupported": "automatic installation is not available on this system",
+  "setup.system_package": "{names}: install it with your distribution's package manager (for example: sudo dnf install aria2, or sudo apt install aria2).",
   "setup.no_checksum": "{tool} publishes no checksum for {file}",
   "setup.checksum_mismatch": "{file} does not match the checksum {tool} publishes; nothing was installed",
   "setup.in_use": "{file} is in use; let the running downloads finish, then try again",
@@ -171,7 +172,7 @@
   "auth.not_youtube_jar": "not a YouTube jar",
 
   "settings.language": "Language",
-  "settings.language_hint": "System follows the Windows display language.",
+  "settings.language_hint": "System follows your computer's display language.",
   "settings.language_system": "system",
   "settings.theme": "Theme",
   "settings.theme_hint": "Catppuccin flavours; system follows the desktop.",

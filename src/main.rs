@@ -27,6 +27,7 @@ fn main() {
     Application::new().run(|cx: &mut App| {
         app::bind_keys(cx);
         ui::text_input::bind_keys(cx);
+        theme::load_fonts(cx);
 
         let bounds = Bounds::centered(None, size(px(1120.), px(720.)), cx);
         let options = WindowOptions {
@@ -40,6 +41,13 @@ fn main() {
             }),
             // Without this the whole surface renders transparent over the desktop.
             window_background: WindowBackgroundAppearance::Opaque,
+            // Linux: the app draws its own title bar, so it asks for no
+            // system frame; its edges resize the window (views.rs).
+            #[cfg(target_os = "linux")]
+            window_decorations: Some(gpui::WindowDecorations::Client),
+            // Matches edownloader.desktop, so the desktop shows the app's
+            // icon and name for the window.
+            app_id: Some("edownloader".into()),
             ..Default::default()
         };
 

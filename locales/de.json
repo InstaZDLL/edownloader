@@ -117,7 +117,8 @@
   "setup.purpose.aria2": "schnelle, fortsetzbare Direktlinks und Magnets",
   "setup.purpose.ffmpeg": "führt Video und Audio zusammen, MP4-Ausgabe",
   "setup.purpose.deno": "löst die Player-Challenge von YouTube",
-  "setup.only_windows": "automatische Installation ist nur unter 64-Bit-Windows verfügbar",
+  "setup.unsupported": "die automatische Installation ist auf diesem System nicht verfügbar",
+  "setup.system_package": "{names}: Installieren Sie es mit dem Paketmanager Ihrer Distribution (zum Beispiel: sudo dnf install aria2 oder sudo apt install aria2).",
   "setup.no_checksum": "{tool} veröffentlicht keine Prüfsumme für {file}",
   "setup.checksum_mismatch": "{file} stimmt nicht mit der von {tool} veröffentlichten Prüfsumme überein; es wurde nichts installiert",
   "setup.in_use": "{file} wird verwendet; laufende Downloads abschließen lassen und erneut versuchen",
@@ -171,7 +172,7 @@
   "auth.not_youtube_jar": "kein YouTube-Set",
 
   "settings.language": "Sprache",
-  "settings.language_hint": "„System“ folgt der Anzeigesprache von Windows.",
+  "settings.language_hint": "„System“ folgt der Anzeigesprache Ihres Computers.",
   "settings.language_system": "System",
   "settings.theme": "Design",
   "settings.theme_hint": "Catppuccin-Varianten; „System“ folgt dem Desktop.",

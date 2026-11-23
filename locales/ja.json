@@ -117,7 +117,8 @@
   "setup.purpose.aria2": "高速で再開可能な直接リンクとマグネット",
   "setup.purpose.ffmpeg": "映像と音声の結合、MP4出力",
   "setup.purpose.deno": "YouTubeのプレーヤーチャレンジを解決",
-  "setup.only_windows": "自動インストールは64ビット版Windowsでのみ利用できます",
+  "setup.unsupported": "このシステムでは自動インストールを利用できません",
+  "setup.system_package": "{names}：ディストリビューションのパッケージマネージャーでインストールしてください（例：sudo dnf install aria2、または sudo apt install aria2）。",
   "setup.no_checksum": "{tool}は{file}のチェックサムを公開していません",
   "setup.checksum_mismatch": "{file}が{tool}の公開チェックサムと一致しません。何もインストールされていません",
   "setup.in_use": "{file}は使用中です。実行中のダウンロードが終わってから再試行してください",
@@ -171,7 +172,7 @@
   "auth.not_youtube_jar": "YouTube用のセットではありません",
 
   "settings.language": "言語",
-  "settings.language_hint": "「システム」はWindowsの表示言語に従います。",
+  "settings.language_hint": "「システム」はコンピューターの表示言語に従います。",
   "settings.language_system": "システム",
   "settings.theme": "テーマ",
   "settings.theme_hint": "Catppuccinのフレーバー。「システム」はデスクトップの設定に従います。",

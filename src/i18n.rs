@@ -186,9 +186,28 @@ fn system_tags() -> Vec<String> {
     }
 }
 
+/// Unix: gettext's order. `LANGUAGE` is a preference list (`fr:en`); the
+/// others hold one locale (`fr_FR.UTF-8`), `C` and `POSIX` meaning none.
 #[cfg(not(windows))]
 fn system_tags() -> Vec<String> {
-    std::env::var("LANG").ok().into_iter().collect()
+    let mut tags = Vec::new();
+    if let Ok(list) = std::env::var("LANGUAGE") {
+        tags.extend(
+            list.split(':')
+                .filter(|tag| !tag.is_empty())
+                .map(str::to_string),
+        );
+    }
+    for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(value) = std::env::var(var) {
+            if !value.is_empty() {
+                tags.push(value);
+                break;
+            }
+        }
+    }
+    tags.retain(|tag| tag != "C" && !tag.starts_with("C.") && tag != "POSIX");
+    tags
 }
 
 /// `fr-FR\0en-US\0\0` → `["fr-FR", "en-US"]`.

@@ -117,7 +117,8 @@
   "setup.purpose.aria2": "liens directs et magnets rapides, avec reprise",
   "setup.purpose.ffmpeg": "fusion vidéo et audio, sortie MP4",
   "setup.purpose.deno": "résout le défi du lecteur YouTube",
-  "setup.only_windows": "l’installation automatique n’est disponible que sur Windows 64 bits",
+  "setup.unsupported": "l’installation automatique n’est pas disponible sur ce système",
+  "setup.system_package": "{names} : installez-le avec le gestionnaire de paquets de votre distribution (par exemple : sudo dnf install aria2, ou sudo apt install aria2).",
   "setup.no_checksum": "{tool} ne publie aucune somme de contrôle pour {file}",
   "setup.checksum_mismatch": "{file} ne correspond pas à la somme de contrôle publiée par {tool} ; rien n’a été installé",
   "setup.in_use": "{file} est en cours d’utilisation ; laissez les téléchargements en cours se terminer, puis réessayez",
@@ -171,7 +172,7 @@
   "auth.not_youtube_jar": "pas un jeu YouTube",
 
   "settings.language": "Langue",
-  "settings.language_hint": "« Système » suit la langue d’affichage de Windows.",
+  "settings.language_hint": "« Système » suit la langue d’affichage de votre ordinateur.",
   "settings.language_system": "système",
   "settings.theme": "Thème",
   "settings.theme_hint": "Variantes Catppuccin ; « système » suit le bureau.",

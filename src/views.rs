@@ -20,6 +20,7 @@ use crate::ui::widgets as w;
 impl Render for RootView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
+            .relative()
             .flex()
             .flex_col()
             .size_full()
@@ -44,6 +45,8 @@ impl Render for RootView {
             .children(self.update_banner(cx))
             .child(self.body(cx))
             .child(self.statusbar(cx))
+            // Last, so its band sits over everything else.
+            .children(crate::ui::frame::resize_edges(window))
     }
 }
 
@@ -88,6 +91,16 @@ enum WindowGlyph {
     Maximize,
     Restore,
     Close,
+}
+
+/// A press on the title bar: drag the window, or (double click) maximize and
+/// restore it, as a system title bar does.
+fn drag_title(event: &gpui::MouseDownEvent, window: &mut Window) {
+    if event.click_count == 2 {
+        toggle_maximized(window);
+    } else {
+        window.start_window_move();
+    }
 }
 
 /// Maximize, or back to the previous size. GPUI's `zoom_window` only ever
@@ -287,7 +300,12 @@ impl RootView {
                     .flex()
                     .items_center()
                     .gap(px(7.))
-                    .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move())
+                    .on_mouse_down(MouseButton::Left, |event, window, _| {
+                        drag_title(event, window)
+                    })
+                    .on_mouse_down(MouseButton::Right, |event, window, _| {
+                        window.show_window_menu(event.position)
+                    })
                     .child(
                         div()
                             .size(px(10.))
@@ -306,7 +324,12 @@ impl RootView {
                 div()
                     .flex_1()
                     .h_full()
-                    .on_mouse_down(MouseButton::Left, |_, window, _| window.start_window_move()),
+                    .on_mouse_down(MouseButton::Left, |event, window, _| {
+                        drag_title(event, window)
+                    })
+                    .on_mouse_down(MouseButton::Right, |event, window, _| {
+                        window.show_window_menu(event.position)
+                    }),
             )
             .child(
                 window_button(WindowGlyph::Minimize, false)
@@ -489,23 +512,38 @@ impl RootView {
                     ),
             );
         }
-        if self.setup.dismissed || self.setup.missing.is_empty() {
+        if self.setup.dismissed || (self.setup.missing.is_empty() && self.setup.system.is_empty()) {
             return None;
         }
         let missing = &self.setup.missing;
+        // Tools only the distribution provides (aria2 on Linux): named, with
+        // how to get them, but nothing to click.
+        let system_note = (!self.setup.system.is_empty()).then(|| {
+            let names: Vec<&str> = self.setup.system.iter().map(|c| c.label()).collect();
+            t!("setup.system_package", names = names.join(", "))
+        });
+        let installable = !missing.is_empty();
         let names: Vec<&str> = missing.iter().map(|c| c.label()).collect();
-        let details: Vec<String> = missing
+        let mut details: Vec<String> = missing
             .iter()
             .map(|c| format!("{} {} — {}", c.label(), c.approx_size(), c.purpose()))
             .collect();
+        if installable {
+            details.push(t!("setup.origin").to_string());
+        }
         let essential = missing
             .iter()
             .any(|c| matches!(c, crate::core::setup::Component::YtDlp));
-        let headline = if essential {
+        let headline = if !installable {
+            system_note.clone().unwrap_or_default()
+        } else if essential {
             t!("setup.needs", names = names.join(", "))
         } else {
             tn!("setup.not_installed", names.len(), names = names.join(", "))
         };
+        if installable {
+            details.extend(system_note);
+        }
         Some(
             banner(theme::palette().warn_soft)
                 .child(w::dot(theme::palette().warn))
@@ -522,22 +560,23 @@ impl RootView {
                                 .truncate()
                                 .child(headline),
                         )
-                        .child(
-                            w::faint(format!("{} · {}", details.join(" · "), t!("setup.origin")))
-                                .truncate(),
-                        ),
+                        .when(!details.is_empty(), |this| {
+                            this.child(w::faint(details.join(" · ")).truncate())
+                        }),
                 )
-                .child(w::primary_button(t!("button.install")).on_mouse_up(
-                    MouseButton::Left,
-                    cx.listener(
-                        |this: &mut RootView,
-                         _: &gpui::MouseUpEvent,
-                         _: &mut Window,
-                         cx: &mut Context<RootView>| {
-                            this.install_missing_tools(cx);
-                        },
-                    ),
-                ))
+                .when(installable, |this| {
+                    this.child(w::primary_button(t!("button.install")).on_mouse_up(
+                        MouseButton::Left,
+                        cx.listener(
+                            |this: &mut RootView,
+                             _: &gpui::MouseUpEvent,
+                             _: &mut Window,
+                             cx: &mut Context<RootView>| {
+                                this.install_missing_tools(cx);
+                            },
+                        ),
+                    ))
+                })
                 .child(w::ghost_button(t!("button.not_now")).on_mouse_up(
                     MouseButton::Left,
                     cx.listener(
